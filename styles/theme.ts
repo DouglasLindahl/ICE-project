@@ -5,7 +5,10 @@ export const theme = {
     card: "#ffffff",
     text: "#0A2540",
     primary: "#0A2540",
+    secondary: "#F9FAFB",
+    accent: "#FFB703",
     primaryHover: "#F97316",
+    border: "rgba(10, 37, 64, 0.1);",
   },
   radii: {
     sm: "8px",
