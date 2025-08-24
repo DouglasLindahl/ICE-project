@@ -276,7 +276,7 @@ export default function Home() {
       <StyledHowItWorks>
         <h3>How It Works</h3>
         <p>
-          Three simple steps to ensure you're never without your emergency
+          Three simple steps to ensure you are never without your emergency
           contacts
         </p>
         <StyledHowItWorksCardSection>
