@@ -11,7 +11,7 @@ const breakpoints = {
   sm: "480px",
 };
 
-const PagePad = "clamp(16px, 5vw, 128px)"; // fluid horizontal padding
+const PagePad = "clamp(16px, 5vw, 128px)";
 
 const StyledPage = styled.div``;
 

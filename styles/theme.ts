@@ -9,6 +9,7 @@ export const theme = {
     accent: "#FFB703",
     primaryHover: "#F97316",
     border: "rgba(10, 37, 64, 0.1);",
+    inputBackground: "#f3f3f5",
   },
   radii: {
     sm: "8px",
