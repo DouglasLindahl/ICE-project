@@ -3,7 +3,7 @@ import Image from "next/image";
 import styles from "./page.module.css";
 import styled from "styled-components";
 import { theme } from "../../styles/theme";
-
+import { useRouter } from "next/navigation";
 // --- Responsive helpers
 const breakpoints = {
   lg: "1024px",
@@ -50,7 +50,10 @@ const StyledSignInButton = styled.button`
   padding: 10px 16px;
   border-radius: 8px;
   border: 1px solid ${theme.colors.border};
-  min-width: 44px; /* touch target */
+  min-width: 44px;
+  &:hover {
+    cursor: pointer;
+  }
 `;
 
 const StyledHero = styled.section`
@@ -323,6 +326,7 @@ const StyledFooter = styled.footer`
 `;
 
 export default function Home() {
+  const router = useRouter();
   return (
     <StyledPage className={styles.page}>
       <StyledHeader>
@@ -330,7 +334,13 @@ export default function Home() {
           <img src="security.png" alt="Shield icon" />
           <StyledHeaderLogoText>Beacon</StyledHeaderLogoText>
         </div>
-        <StyledSignInButton>Sign In</StyledSignInButton>
+        <StyledSignInButton
+          onClick={() => {
+            router.push("/login");
+          }}
+        >
+          Sign In
+        </StyledSignInButton>
       </StyledHeader>
 
       <StyledHero>
@@ -341,7 +351,13 @@ export default function Home() {
             device. Generate a QR code for keychains, wristbands, or cards so
             help is always within reach.
           </p>
-          <StyledCTAButton>Get Started Free</StyledCTAButton>
+          <StyledCTAButton
+            onClick={() => {
+              router.push("/register");
+            }}
+          >
+            Get Started Free
+          </StyledCTAButton>
         </StyledHeroInfo>
 
         <StyledHeroImage>
