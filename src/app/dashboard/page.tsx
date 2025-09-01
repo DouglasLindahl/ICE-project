@@ -15,7 +15,7 @@ function cleanDigits(s: string) {
 function toE164US(
   raw: string
 ): { ok: true; e164: string } | { ok: false; reason: string } {
-  let v = cleanDigits(raw).trim();
+  const v = cleanDigits(raw).trim();
 
   // already +E.164?
   if (v.startsWith("+")) {
@@ -169,6 +169,23 @@ const StyledDashboardContactsSectionContactCardSection = styled.div`
   display: flex;
   flex-direction: column;
   gap: 12px;
+`;
+
+const StyledDashboardContactsSectionPermanentContactCard = styled.div`
+  background-color: ${theme.colors.background};
+  width: 100%;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  border-radius: 12px;
+  border: 1px solid ${theme.colors.border};
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr auto;
+    row-gap: 10px;
+  }
 `;
 
 const StyledDashboardContactsSectionContactCard = styled.div`
