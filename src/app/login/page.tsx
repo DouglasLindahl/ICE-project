@@ -134,8 +134,13 @@ export default function Login() {
         return;
       }
       router.push("/dashboard");
-    } catch (err: any) {
-      setErrorMsg(err?.message ?? "Something went wrong. Please try again.");
+    } catch (err: unknown) {
+      // Narrow unknown safely
+      if (err instanceof Error) {
+        setErrorMsg(err.message);
+      } else {
+        setErrorMsg("Something went wrong. Please try again.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -192,8 +197,9 @@ export default function Login() {
         <StyledLoginFormAlreadyHaveAnAccountButton
           onClick={() => router.push("/register")}
           type="button"
+          aria-label="Go to sign up"
         >
-          Don't have an account? Sign up
+          Don&apos;t have an account? Sign up
         </StyledLoginFormAlreadyHaveAnAccountButton>
 
         <StyledLoginFormHomeButton
