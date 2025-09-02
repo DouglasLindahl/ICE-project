@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browserClient";
 import styled from "styled-components";
@@ -7,37 +7,126 @@ import { theme } from "../../../styles/theme";
 import { QrCanvas } from "@/components/QrCanvas";
 import { generateToken } from "@/utils/token";
 
-// --- Phone helpers (basic, US-first) ---
-function cleanDigits(s: string) {
+/* ============================
+   Country data & phone helpers
+   ============================ */
+type Country = {
+  code: string;
+  name: string;
+  dial: string;
+  trunkZero?: boolean;
+};
+
+// A compact, sensible set. Add more anytime.
+const COUNTRIES: Country[] = [
+  { code: "US", name: "United States", dial: "1" },
+  { code: "CA", name: "Canada", dial: "1" },
+  { code: "MX", name: "Mexico", dial: "52" },
+  { code: "BR", name: "Brazil", dial: "55" },
+  { code: "AR", name: "Argentina", dial: "54" },
+  { code: "GB", name: "United Kingdom", dial: "44", trunkZero: true },
+  { code: "IE", name: "Ireland", dial: "353", trunkZero: true },
+  { code: "FR", name: "France", dial: "33", trunkZero: true },
+  { code: "DE", name: "Germany", dial: "49", trunkZero: true },
+  { code: "ES", name: "Spain", dial: "34", trunkZero: true },
+  { code: "PT", name: "Portugal", dial: "351", trunkZero: true },
+  { code: "IT", name: "Italy", dial: "39", trunkZero: true },
+  { code: "NL", name: "Netherlands", dial: "31", trunkZero: true },
+  { code: "BE", name: "Belgium", dial: "32", trunkZero: true },
+  { code: "SE", name: "Sweden", dial: "46", trunkZero: true },
+  { code: "NO", name: "Norway", dial: "47" },
+  { code: "DK", name: "Denmark", dial: "45" },
+  { code: "FI", name: "Finland", dial: "358", trunkZero: true },
+  { code: "IS", name: "Iceland", dial: "354" },
+  { code: "PL", name: "Poland", dial: "48", trunkZero: true },
+  { code: "CZ", name: "Czechia", dial: "420" },
+  { code: "AT", name: "Austria", dial: "43", trunkZero: true },
+  { code: "CH", name: "Switzerland", dial: "41", trunkZero: true },
+  { code: "HU", name: "Hungary", dial: "36", trunkZero: true },
+  { code: "RO", name: "Romania", dial: "40", trunkZero: true },
+  { code: "GR", name: "Greece", dial: "30", trunkZero: true },
+  { code: "TR", name: "Türkiye", dial: "90", trunkZero: true },
+  { code: "RU", name: "Russia", dial: "7" },
+  { code: "UA", name: "Ukraine", dial: "380" },
+  { code: "IL", name: "Israel", dial: "972", trunkZero: true },
+  { code: "AE", name: "United Arab Emirates", dial: "971" },
+  { code: "SA", name: "Saudi Arabia", dial: "966" },
+  { code: "ZA", name: "South Africa", dial: "27", trunkZero: true },
+  { code: "EG", name: "Egypt", dial: "20", trunkZero: true },
+  { code: "AU", name: "Australia", dial: "61", trunkZero: true },
+  { code: "NZ", name: "New Zealand", dial: "64", trunkZero: true },
+  { code: "IN", name: "India", dial: "91", trunkZero: true },
+  { code: "PK", name: "Pakistan", dial: "92", trunkZero: true },
+  { code: "BD", name: "Bangladesh", dial: "880", trunkZero: true },
+  { code: "CN", name: "China", dial: "86" },
+  { code: "JP", name: "Japan", dial: "81", trunkZero: true },
+  { code: "KR", name: "South Korea", dial: "82", trunkZero: true },
+  { code: "TW", name: "Taiwan", dial: "886", trunkZero: true },
+  { code: "SG", name: "Singapore", dial: "65" },
+  { code: "MY", name: "Malaysia", dial: "60", trunkZero: true },
+  { code: "TH", name: "Thailand", dial: "66", trunkZero: true },
+  { code: "PH", name: "Philippines", dial: "63", trunkZero: true },
+  { code: "VN", name: "Vietnam", dial: "84", trunkZero: true },
+  { code: "ID", name: "Indonesia", dial: "62", trunkZero: true },
+];
+
+function cleanPlusDigits(s: string) {
   return s.replace(/[^\d+]/g, "");
 }
 
-function toE164US(
-  raw: string
+// Very light detection just to pre-select in Edit modal
+function detectCountryFromE164(phone: string): Country | null {
+  if (!phone.startsWith("+")) return null;
+  const digits = phone.slice(1);
+  // match longest dial code
+  const sorted = [...COUNTRIES].sort((a, b) => b.dial.length - a.dial.length);
+  for (const c of sorted) {
+    if (digits.startsWith(c.dial)) return c;
+  }
+  return null;
+}
+
+function toE164WithCountry(
+  raw: string,
+  country: Country
 ): { ok: true; e164: string } | { ok: false; reason: string } {
-  const v = cleanDigits(raw).trim();
+  let v = cleanPlusDigits(raw).trim();
 
-  // already +E.164?
+  // 00… → +
+  if (v.startsWith("00")) v = "+" + v.slice(2);
+
+  // Already international?
   if (v.startsWith("+")) {
-    // minimal validation: + then 8-15 digits (common E.164 bounds)
     if (/^\+\d{8,15}$/.test(v)) return { ok: true, e164: v };
-    return { ok: false, reason: "Invalid E.164 format" };
+    return {
+      ok: false,
+      reason: "Invalid E.164 format (use + and digits only, 8–15 digits)",
+    };
   }
 
-  // allow leading 1 for NANP
-  if (/^1\d{10}$/.test(v)) {
-    return { ok: true, e164: `+${v}` }; // already 1 + 10 digits
-  }
-
-  // plain 10 digits -> assume US (+1)
-  if (/^\d{10}$/.test(v)) {
+  // US convenience: exactly 10 digits → +1…
+  if (country.code === "US" && /^\d{10}$/.test(v)) {
     return { ok: true, e164: `+1${v}` };
   }
 
-  // anything else fails our simple rules
-  return { ok: false, reason: "Enter 10 digits (US) or a full +E.164 number" };
+  // If country uses trunk '0', drop one leading '0' (e.g., 070… in SE → +46 70…)
+  if (country.trunkZero && v.startsWith("0")) v = v.replace(/^0/, "");
+
+  // If it's purely digits and within reasonable length, prefix selected dial code
+  if (/^\d{6,15}$/.test(v)) {
+    return { ok: true, e164: `+${country.dial}${v}` };
+  }
+
+  return {
+    ok: false,
+    reason:
+      "Enter a valid number. Example: +4612345678, 004612345678, or local digits with correct country selected.",
+  };
 }
 
+/* ============================
+   Types & styled components
+   ============================ */
 type Contact = {
   id: string;
   name: string;
@@ -171,23 +260,6 @@ const StyledDashboardContactsSectionContactCardSection = styled.div`
   gap: 12px;
 `;
 
-const StyledDashboardContactsSectionPermanentContactCard = styled.div`
-  background-color: ${theme.colors.background};
-  width: 100%;
-  padding: 14px;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  border-radius: 12px;
-  border: 1px solid ${theme.colors.border};
-
-  @media (max-width: 480px) {
-    grid-template-columns: 1fr auto;
-    row-gap: 10px;
-  }
-`;
-
 const StyledDashboardContactsSectionContactCard = styled.div`
   background-color: ${theme.colors.background};
   width: 100%;
@@ -234,19 +306,11 @@ const StyledDashboardContactsSectionContactCardName = styled.p`
   font-size: 16px;
   font-weight: bold;
   margin: 0;
-
-  @media (max-width: 480px) {
-    font-size: 15px;
-  }
 `;
 
 const StyledDashboardContactsSectionContactCardNumber = styled.p`
   font-size: 14px;
   margin: 0;
-
-  @media (max-width: 480px) {
-    font-size: 13px;
-  }
 `;
 
 const IconButton = styled.button`
@@ -283,10 +347,6 @@ const StyledDashboardQRCodeSectionHeader = styled.h2`
   font-weight: 400;
   margin: 0;
   font-size: 20px;
-
-  @media (max-width: 480px) {
-    font-size: 18px;
-  }
 `;
 
 const StyledDashboardQRCodeSectionQRCodeImageSection = styled.div`
@@ -307,10 +367,6 @@ const StyledDashboardQRCodeSectionQRCodeTextSection = styled.div`
 const StyledDashboardQRCodeSectionSubHeader = styled.h3`
   font-size: 16px;
   margin: 0;
-
-  @media (max-width: 480px) {
-    font-size: 14px;
-  }
 `;
 
 const StyledDashboardQRCodeSectionSubText = styled.p`
@@ -432,11 +488,56 @@ const Input = styled.input`
   border-radius: 10px;
   border: none;
   font-size: 14px;
+`;
 
-  @media (max-width: 480px) {
-    padding: 10px;
-    font-size: 13px;
-  }
+// --- replace your existing Row + Select with these ---
+
+const Row = styled.div`
+  display: flex;
+  justify-content: start;
+  align-items: center;
+  gap: 12px;
+`;
+
+/* A wrapper that lets us keep the native select (so the dropdown looks the same),
+   but visually show only “+dial” as the button label. */
+const CountryField = styled.div`
+  position: relative;
+  height: 40px; /* matches Input height (10px padding + 14px font roughly) */
+`;
+
+/* Shows the +dial text as the visible “button” */
+const DialDisplay = styled.button`
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  background-color: ${theme.colors.inputBackground};
+  border: none;
+  font-size: 14px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none; /* clicks go to the select overlay */
+`;
+
+/* Native select sits on top (transparent), so clicking opens the normal menu */
+const HiddenSelect = styled.select`
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0; /* invisible but fully interactive */
+  appearance: auto; /* keep native platform look for the dropdown */
+  cursor: pointer;
+`;
+
+const Select = styled.select`
+  padding: 10px;
+  background-color: ${theme.colors.inputBackground};
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
 `;
 
 const Submit = styled.button`
@@ -484,11 +585,14 @@ const DangerBtn = styled.button`
   padding: 10px 12px;
   border-radius: 10px;
   border: none;
-  background: #ef4444; /* red-500 */
+  background: #ef4444;
   color: white;
   font-size: 14px;
 `;
 
+/* ============================
+   Component
+   ============================ */
 export default function DashboardPage() {
   const router = useRouter();
   const supa = createClient();
@@ -503,6 +607,7 @@ export default function DashboardPage() {
   const [name, setName] = useState("");
   const [relationship, setRelationship] = useState("");
   const [phone, setPhone] = useState("");
+  const [addCountry, setAddCountry] = useState<Country>(COUNTRIES[0]); // default US (change if you prefer)
   const [submitting, setSubmitting] = useState(false);
 
   // Edit Contact modal state
@@ -511,6 +616,7 @@ export default function DashboardPage() {
   const [editName, setEditName] = useState("");
   const [editRelationship, setEditRelationship] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editCountry, setEditCountry] = useState<Country>(COUNTRIES[0]);
 
   // Delete Contact modal state
   const [showDelete, setShowDelete] = useState(false);
@@ -519,6 +625,16 @@ export default function DashboardPage() {
 
   // QR state
   const [publicUrl, setPublicUrl] = useState<string | null>(null);
+
+  // (Optional) pick default by browser locale
+  useEffect(() => {
+    try {
+      const locale = Intl.DateTimeFormat().resolvedOptions().locale; // e.g. en-US
+      const countryPart = locale.split("-")[1]?.toUpperCase();
+      const match = COUNTRIES.find((c) => c.code === countryPart);
+      if (match) setAddCountry(match);
+    } catch {}
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -585,13 +701,13 @@ export default function DashboardPage() {
     return newToken;
   }
 
-  // CREATE
+  /* ========== CREATE ========== */
   async function addContact(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!name || !phone || !userId) return;
     setSubmitting(true);
     try {
-      const parsed = toE164US(phone);
+      const parsed = toE164WithCountry(phone, addCountry);
       if (!parsed.ok) {
         alert(parsed.reason);
         setSubmitting(false);
@@ -622,26 +738,22 @@ export default function DashboardPage() {
       setPhone("");
     } catch (err) {
       console.error(err);
-      alert(
-        "Could not add contact. Please check the phone format (e.g. +15551234567) and try again."
-      );
+      alert("Could not add contact. Please check the number and try again.");
     } finally {
       setSubmitting(false);
     }
   }
 
-  // DELETE (open)
+  /* ========== DELETE ========== */
   function openDelete(c: Contact) {
     setDeleteTarget(c);
     setShowDelete(true);
   }
 
-  // DELETE (confirm)
   async function confirmDelete() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      // optimistic remove
       setContacts((cs) => cs.filter((x) => x.id !== deleteTarget.id));
       const { error } = await supa
         .from("contacts")
@@ -649,7 +761,6 @@ export default function DashboardPage() {
         .eq("id", deleteTarget.id);
       if (error) throw error;
 
-      // optional re-fetch to ensure order kept
       const { data: rows } = await supa
         .from("contacts")
         .select("id,name,relationship,phone_e164,priority")
@@ -665,21 +776,24 @@ export default function DashboardPage() {
     }
   }
 
-  // EDIT (open)
+  /* ========== EDIT ========== */
   function openEdit(c: Contact) {
     setEditId(c.id);
     setEditName(c.name);
     setEditRelationship(c.relationship ?? "");
     setEditPhone(c.phone_e164);
+
+    const guess = detectCountryFromE164(c.phone_e164);
+    setEditCountry(guess ?? COUNTRIES[0]);
+
     setShowEdit(true);
   }
 
-  // EDIT (submit)
   async function submitEdit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!editId) return;
     try {
-      const parsed = toE164US(editPhone);
+      const parsed = toE164WithCountry(editPhone, editCountry);
       if (!parsed.ok) {
         alert(parsed.reason);
         return;
@@ -712,11 +826,11 @@ export default function DashboardPage() {
       setEditId(null);
     } catch (err) {
       console.error(err);
-      alert("Update failed. Please check the phone format and try again.");
+      alert("Update failed. Please check the number and try again.");
     }
   }
 
-  // ESC closers
+  /* ========== ESC to close modals ========== */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -904,6 +1018,7 @@ export default function DashboardPage() {
                 placeholder="Enter contact name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                maxLength={60}
                 required
               />
 
@@ -913,20 +1028,54 @@ export default function DashboardPage() {
                 placeholder="Parent, Partner, Friend…"
                 value={relationship}
                 onChange={(e) => setRelationship(e.target.value)}
+                maxLength={32}
               />
 
-              <Label htmlFor="phone">Phone Number (E.164)</Label>
-              <Input
-                id="phone"
-                placeholder="(618) 340-1982 or +16183401982"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                onBlur={() => {
-                  const parsed = toE164US(phone);
-                  if (parsed.ok) setPhone(parsed.e164);
-                }}
-                required
-              />
+              <Label htmlFor="phone">Phone Number</Label>
+              <Row>
+                <div>
+                  <CountryField>
+                    <DialDisplay
+                      aria-hidden
+                    >{`+${addCountry.dial}`}</DialDisplay>
+                    <HiddenSelect
+                      id="country"
+                      value={addCountry.code}
+                      onChange={(e) => {
+                        const next = COUNTRIES.find(
+                          (c) => c.code === e.target.value
+                        )!;
+                        setAddCountry(next);
+                      }}
+                      aria-label="Select country"
+                    >
+                      {COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.name} (+{c.dial})
+                        </option>
+                      ))}
+                    </HiddenSelect>
+                  </CountryField>
+                </div>
+
+                <div style={{ width: "100%" }}>
+                  <Input
+                    id="phone"
+                    style={{ width: "100%" }}
+                    placeholder="(123) 456-7890"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    onBlur={() => {
+                      const p = toE164WithCountry(phone, addCountry);
+                      if (p.ok) setPhone(p.e164);
+                    }}
+                    inputMode="tel"
+                    maxLength={22}
+                    pattern="[\d\+\-\s\(\)]*"
+                    required
+                  />
+                </div>
+              </Row>
 
               <Submit type="submit" disabled={submitting}>
                 {submitting ? "Adding…" : "Add Contact"}
@@ -962,6 +1111,7 @@ export default function DashboardPage() {
                 id="ename"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
+                maxLength={60}
                 required
               />
 
@@ -970,15 +1120,52 @@ export default function DashboardPage() {
                 id="erel"
                 value={editRelationship}
                 onChange={(e) => setEditRelationship(e.target.value)}
+                maxLength={32}
               />
+              <Label htmlFor="phone">Phone Number</Label>
+              <Row>
+                <div>
+                  <CountryField>
+                    <DialDisplay
+                      aria-hidden
+                    >{`+${editCountry.dial}`}</DialDisplay>
+                    <HiddenSelect
+                      id="ecountry"
+                      value={editCountry.code}
+                      onChange={(e) => {
+                        const next = COUNTRIES.find(
+                          (c) => c.code === e.target.value
+                        )!;
+                        setEditCountry(next);
+                      }}
+                      aria-label="Select country"
+                    >
+                      {COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.name} (+{c.dial})
+                        </option>
+                      ))}
+                    </HiddenSelect>
+                  </CountryField>
+                </div>
 
-              <Label htmlFor="ephone">Phone Number (E.164)</Label>
-              <Input
-                id="ephone"
-                value={editPhone}
-                onChange={(e) => setEditPhone(e.target.value)}
-                required
-              />
+                <div style={{ width: "100%" }}>
+                  <Input
+                    id="ephone"
+                    style={{ width: "100%" }}
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    onBlur={() => {
+                      const p = toE164WithCountry(editPhone, editCountry);
+                      if (p.ok) setEditPhone(p.e164);
+                    }}
+                    inputMode="tel"
+                    maxLength={22}
+                    pattern="[\d\+\-\s\(\)]*"
+                    required
+                  />
+                </div>
+              </Row>
 
               <Submit type="submit">Save Changes</Submit>
             </Form>
