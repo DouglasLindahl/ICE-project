@@ -172,13 +172,26 @@ const StyledDashboardHeaderRight = styled.div`
   }
 `;
 
-const StyledDashboardHeaderSignOutButton = styled.button`
+const StyledDashboardHeaderButton = styled.button`
   padding: 10px 16px;
   border-radius: 8px;
   border: 1px solid ${theme.colors.border};
   min-width: 44px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
   &:hover {
     cursor: pointer;
+  }
+
+  img {
+    height: 14px;
+    width: 14px;
+  }
+
+  p {
+    height: 14px;
   }
 
   @media (max-width: 480px) {
@@ -199,7 +212,7 @@ const StyledDashboardInfoSection = styled.section`
     gap: 24px;
   }
   @media (max-width: 900px) {
-    flex-direction: column;
+    flex-direction: column-reverse;
     padding: 16px;
     gap: 16px;
   }
@@ -855,15 +868,31 @@ export default function DashboardPage() {
       <StyledDashboardHeader>
         <StyledDashboardHeaderLogo>Beacon</StyledDashboardHeaderLogo>
         <StyledDashboardHeaderRight>
-          <span>{email}</span>
-          <StyledDashboardHeaderSignOutButton
+          <StyledDashboardHeaderButton
+            onClick={async () => {
+              window.alert("Take user to shop");
+            }}
+          >
+            <img src="shopping-bag.png" alt="" />
+            <p>Shop</p>
+          </StyledDashboardHeaderButton>
+          <StyledDashboardHeaderButton
+            onClick={async () => {
+              window.alert("Take user to settings");
+            }}
+          >
+            <img src="setting.png" alt="" />
+            <p>Settings</p>
+          </StyledDashboardHeaderButton>
+          <StyledDashboardHeaderButton
             onClick={async () => {
               await supa.auth.signOut();
               router.replace("/login");
             }}
           >
-            Sign Out
-          </StyledDashboardHeaderSignOutButton>
+            <img src="logout.png" alt="" />
+            <p>Sign Out</p>
+          </StyledDashboardHeaderButton>
         </StyledDashboardHeaderRight>
       </StyledDashboardHeader>
 
@@ -986,7 +1015,8 @@ export default function DashboardPage() {
 
           <StyledDashboardQRCodeSectionQRCodeDisclaimer>
             Print this QR on keychains, wristbands, or wallet cards for quick
-            emergency access.
+            emergency access. You can also visit our shop to purchase already
+            made items, ready for immediate use.
           </StyledDashboardQRCodeSectionQRCodeDisclaimer>
         </StyledDashboardQRCodeSection>
       </StyledDashboardInfoSection>
