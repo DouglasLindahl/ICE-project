@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browserClient";
 import styled from "styled-components";
@@ -142,6 +143,7 @@ const StyledDashboardPage = styled.div`
 `;
 
 const StyledDashboardHeader = styled.header`
+  position: relative; /* ensure dropdown anchors to header */
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -169,6 +171,72 @@ const StyledDashboardHeaderRight = styled.div`
   @media (max-width: 480px) {
     gap: 8px;
     font-size: 12px;
+  }
+
+  /* NEW: hide desktop buttons on small screens */
+  @media (max-width: 900px) {
+    display: none;
+  }
+`;
+const StyledHamburgerButton = styled.button`
+  display: none;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  line-height: 0; /* tighter */
+  &:hover {
+    cursor: pointer;
+  }
+
+  img {
+    width: 20px;
+    height: 20px;
+  }
+
+  @media (max-width: 900px) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+`;
+const MobileMenu = styled.div`
+  position: absolute;
+  right: 16px;
+  top: calc(100% + 8px);
+  background: ${theme.colors.card};
+  border: 1px solid ${theme.colors.border};
+  border-radius: 12px;
+  padding: 8px;
+  min-width: 180px;
+  z-index: 40;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+
+  @media (min-width: 901px) {
+    display: none; /* menu is only for mobile */
+  }
+`;
+
+const MobileMenuItem = styled.button`
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  text-align: left;
+
+  &:hover {
+    cursor: pointer;
+    background: ${theme.colors.inputBackground};
+  }
+
+  img {
+    width: 16px;
+    height: 16px;
   }
 `;
 
@@ -610,6 +678,10 @@ export default function DashboardPage() {
   const router = useRouter();
   const supa = createClient();
 
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuBtnRef = useRef<HTMLButtonElement | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [email, setEmail] = useState<string | null>(null);
@@ -638,6 +710,29 @@ export default function DashboardPage() {
 
   // QR state
   const [publicUrl, setPublicUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (!menuOpen) return;
+      const target = e.target as Node;
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(target) &&
+        menuBtnRef.current &&
+        !menuBtnRef.current.contains(target)
+      ) {
+        setMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
 
   // (Optional) pick default by browser locale
   useEffect(() => {
@@ -867,6 +962,8 @@ export default function DashboardPage() {
     <StyledDashboardPage>
       <StyledDashboardHeader>
         <StyledDashboardHeaderLogo>Beacon</StyledDashboardHeaderLogo>
+
+        {/* Desktop actions (hidden on mobile) */}
         <StyledDashboardHeaderRight>
           <StyledDashboardHeaderButton
             onClick={async () => {
@@ -894,6 +991,55 @@ export default function DashboardPage() {
             <p>Sign Out</p>
           </StyledDashboardHeaderButton>
         </StyledDashboardHeaderRight>
+
+        {/* Mobile hamburger (hidden on desktop) */}
+        <StyledHamburgerButton
+          ref={menuBtnRef}
+          aria-label="Open menu"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          aria-controls="mobile-menu"
+          onClick={() => setMenuOpen((o) => !o)}
+        >
+          <img src="hamburger.png" alt="" />
+        </StyledHamburgerButton>
+
+        {/* Dropdown menu for mobile */}
+        {menuOpen && (
+          <MobileMenu id="mobile-menu" role="menu" ref={menuRef}>
+            <MobileMenuItem
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                window.alert("Take user to shop");
+              }}
+            >
+              <img src="shopping-bag.png" alt="" />
+              Shop
+            </MobileMenuItem>
+            <MobileMenuItem
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                window.alert("Take user to settings");
+              }}
+            >
+              <img src="setting.png" alt="" />
+              Settings
+            </MobileMenuItem>
+            <MobileMenuItem
+              role="menuitem"
+              onClick={async () => {
+                setMenuOpen(false);
+                await supa.auth.signOut();
+                router.replace("/login");
+              }}
+            >
+              <img src="logout.png" alt="" />
+              Sign Out
+            </MobileMenuItem>
+          </MobileMenu>
+        )}
       </StyledDashboardHeader>
 
       <StyledDashboardInfoSection>
