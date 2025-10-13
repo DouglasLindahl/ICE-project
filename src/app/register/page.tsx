@@ -15,6 +15,27 @@ type Country = {
   trunkZero?: boolean;
 };
 
+type SupabaseIdentity = {
+  id: string;
+  user_id: string;
+  identity_id: string;
+  provider: string; // e.g. "email"
+  provider_id?: string | null; // shows up in your log
+  email?: string | null; // shows up in your log
+  identity_data: {
+    [key: string]: unknown; // includes { display_name, email, ... }
+    display_name?: string;
+    email?: string;
+  };
+  created_at: string | null;
+  updated_at: string | null;
+  last_sign_in_at: string | null;
+};
+
+type SupabaseUserWithIdentities = {
+  identities?: SupabaseIdentity[] | null;
+};
+
 const COUNTRIES: Country[] = [
   { code: "US", name: "United States", dial: "1" },
   { code: "CA", name: "Canada", dial: "1" },
@@ -342,15 +363,17 @@ export default function Register() {
         return;
       }
 
-      // Supabase "already in use" signal: identities = []
-      if (data?.user && Array.isArray((data.user as any).identities)) {
-        const identities = (data.user as any).identities as any[];
-        if (identities.length === 0) {
+      if (data?.user) {
+        const identities = (data.user as SupabaseUserWithIdentities).identities;
+        if (Array.isArray(identities) && identities.length === 0) {
           setErrorMsg("That email is already in use. Try signing in instead.");
           return;
         }
       }
 
+      console.log(data);
+      console.log(data.user);
+      console.log(data.user?.identities);
       const { data: sessionCheck } = await supa.auth.getSession();
       if (sessionCheck.session) {
         router.push("/dashboard");
@@ -359,10 +382,12 @@ export default function Register() {
           "Check your email to confirm your account. If this email was already registered but unconfirmed, we re-sent the confirmation link."
         );
       }
-    } catch (err: any) {
-      setErrorMsg(err?.message ?? "Something went wrong. Please try again.");
-    } finally {
-      setSubmitting(false);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again.";
+      setErrorMsg(message);
     }
   }
 
