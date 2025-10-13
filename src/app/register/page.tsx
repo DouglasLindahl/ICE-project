@@ -227,18 +227,12 @@ const Form = styled.form`
   flex-direction: column;
 `;
 
-/* layout for country + phone: 10% / 90% */
+/* layout for country + phone */
 const Row = styled.div`
-  display: grid;
   display: flex;
-  justify-content: start;
   align-items: center;
   width: 100%;
   gap: 12px;
-
-  @media (max-width: 480px) {
-    grid-template-columns: 1fr;
-  }
 `;
 
 /* Fake-looking dial display that still uses a real <select> */
@@ -265,13 +259,16 @@ const HiddenSelect = styled.select`
   inset: 0;
   width: 100%;
   height: 100%;
-  opacity: 0; /* invisible but clickable */
+  opacity: 0;
   cursor: pointer;
 `;
 
-/* ============================
-   Component
-   ============================ */
+const StyledTermsAndConditions = styled.div`
+  text-align: center;
+  font-size: 14px;
+  padding: 12px;
+`;
+
 export default function Register() {
   const router = useRouter();
   const supa = createClient();
@@ -302,8 +299,10 @@ export default function Register() {
     e.preventDefault();
     setErrorMsg(null);
     setInfoMsg(null);
-    setSubmitting(true);
+    const nowIso = new Date().toISOString();
+    const TERMS_VERSION = "2025-03-01";
 
+    setSubmitting(true);
     try {
       // normalize phone to +E.164 using selected country
       let phoneE164 = "";
@@ -324,6 +323,9 @@ export default function Register() {
           data: {
             display_name: fullName || "",
             phone_number: phoneE164 || "",
+            terms_version: TERMS_VERSION,
+            terms_accepted_at: true ? nowIso : null,
+            privacy_accepted_at: true ? nowIso : null,
           },
           emailRedirectTo: process.env.NEXT_PUBLIC_APP_URL
             ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
@@ -463,6 +465,26 @@ export default function Register() {
             {submitting ? "Creating..." : "Create account"}
           </SubmitBtn>
         </Form>
+        <StyledTermsAndConditions>
+          <p>By proceeding, you agree to the </p>
+          <a
+            href="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "#2563eb", textDecoration: "underline" }}
+          >
+            Terms & Conditions
+          </a>
+          {" and "}
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "#2563eb", textDecoration: "underline" }}
+          >
+            Privacy Policy
+          </a>
+        </StyledTermsAndConditions>
 
         <LinkBtn onClick={() => router.push("/login")} type="button">
           Already have an account? Sign in

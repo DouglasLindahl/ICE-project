@@ -54,6 +54,13 @@ const StyledLoginFormInputSection = styled.div`
   width: 100%;
 `;
 
+const RowBetween = styled.div`
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+`;
+
 const StyledLoginFormInput = styled.input`
   width: 100%;
   padding: 8px;
@@ -78,6 +85,18 @@ const StyledLoginFormSubmitButton = styled.button<{ disabled?: boolean }>`
   margin-top: 24px;
   opacity: ${({ disabled }) => (disabled ? 0.7 : 1)};
   cursor: ${({ disabled }) => (disabled ? "not-allowed" : "pointer")};
+`;
+
+const StyledTextButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 12px;
+  padding: 0;
+  margin-top: 8px;
+  &:hover {
+    cursor: pointer;
+    text-decoration: underline;
+  }
 `;
 
 const StyledLoginFormAlreadyHaveAnAccountButton = styled.button`
@@ -108,6 +127,13 @@ const StyledError = styled.div`
   font-size: 12px;
 `;
 
+const StyledInfo = styled.div`
+  width: 100%;
+  margin-top: 12px;
+  color: #0f6;
+  font-size: 12px;
+`;
+
 const StyledForm = styled.form`
   width: 100%;
   display: flex;
@@ -122,10 +148,12 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [infoMsg, setInfoMsg] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErrorMsg(null);
+    setInfoMsg(null);
     setSubmitting(true);
     try {
       const { error } = await supa.auth.signInWithPassword({ email, password });
@@ -135,7 +163,6 @@ export default function Login() {
       }
       router.push("/dashboard");
     } catch (err: unknown) {
-      // Narrow unknown safely
       if (err instanceof Error) {
         setErrorMsg(err.message);
       } else {
@@ -143,6 +170,35 @@ export default function Login() {
       }
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    setErrorMsg(null);
+    setInfoMsg(null);
+
+    if (!email) {
+      setErrorMsg(
+        "Enter your email above, then click “Forgot password?” again."
+      );
+      return;
+    }
+
+    try {
+      const { error } = await supa.auth.resetPasswordForEmail(email, {
+        redirectTo: `${location.origin}/resetPassword`,
+      });
+      if (error) {
+        setErrorMsg(error.message);
+        return;
+      }
+      setInfoMsg("Password reset email sent. Check your inbox for a link.");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setErrorMsg(err.message);
+      } else {
+        setErrorMsg("Could not send reset email. Please try again.");
+      }
     }
   }
 
@@ -157,9 +213,11 @@ export default function Login() {
 
         <StyledForm onSubmit={handleSubmit}>
           <StyledLoginFormInputSection>
-            <StyledLoginFormInputLabel htmlFor="email">
-              Email
-            </StyledLoginFormInputLabel>
+            <RowBetween>
+              <StyledLoginFormInputLabel htmlFor="email">
+                Email
+              </StyledLoginFormInputLabel>
+            </RowBetween>
             <StyledLoginFormInput
               id="email"
               type="email"
@@ -172,9 +230,12 @@ export default function Login() {
           </StyledLoginFormInputSection>
 
           <StyledLoginFormInputSection>
-            <StyledLoginFormInputLabel htmlFor="password">
-              Password
-            </StyledLoginFormInputLabel>
+            <RowBetween>
+              <StyledLoginFormInputLabel htmlFor="password">
+                Password
+              </StyledLoginFormInputLabel>
+            </RowBetween>
+
             <StyledLoginFormInput
               id="password"
               type="password"
@@ -185,9 +246,17 @@ export default function Login() {
               required
               minLength={6}
             />
+            <StyledTextButton
+              type="button"
+              onClick={handleForgotPassword}
+              aria-label="Reset your password"
+            >
+              Forgot password?
+            </StyledTextButton>
           </StyledLoginFormInputSection>
 
           {errorMsg && <StyledError>{errorMsg}</StyledError>}
+          {infoMsg && <StyledInfo>{infoMsg}</StyledInfo>}
 
           <StyledLoginFormSubmitButton type="submit" disabled={submitting}>
             {submitting ? "Signing in..." : "Sign in"}
