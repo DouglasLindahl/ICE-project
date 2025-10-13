@@ -7,6 +7,10 @@ import styled from "styled-components";
 import { theme } from "../../../styles/theme";
 import { QrCanvas } from "@/components/QrCanvas";
 import { generateToken } from "@/utils/token";
+import {
+  RestrictedInput,
+  validateName,
+} from "@/components/RestrictedInput/page";
 
 /* ============================
    Country data & phone helpers
@@ -141,6 +145,7 @@ const LeftColumn = styled.div`
   flex-direction: column;
   gap: 16px;
   flex: 1.4; /* a bit wider than QR column */
+  width: 100%;
 `;
 
 const RightColumn = styled.div`
@@ -637,7 +642,7 @@ const Input = styled.input`
 const Row = styled.div`
   display: flex;
   justify-content: start;
-  align-items: center;
+  align-items: start;
   gap: 12px;
 `;
 
@@ -761,10 +766,23 @@ export default function DashboardPage() {
   const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
   const [deleting, setDeleting] = useState(false);
   // Additional info state
+  // Additional Information (inline debounce + status)
   const [additionalInfo, setAdditionalInfo] = useState("");
   const [aiSaving, setAiSaving] = useState(false);
   const [aiSavedAt, setAiSavedAt] = useState<string | null>(null);
+
+  // debounce internals
+  const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const aiLatestRef = useRef<string>("");
+
   const ADDITIONAL_INFO_MAX = 1000;
+  // ===== Country-aware phone validation for RestrictedInput =====
+
+  const validatePhoneByCountry = (v: string) => {
+    if (!v) return "Phone is required.";
+    const p = toE164WithCountry(v, addCountry);
+    return p.ok ? null : p.reason;
+  };
 
   // QR state
   const [publicUrl, setPublicUrl] = useState<string | null>(null);
@@ -818,6 +836,21 @@ export default function DashboardPage() {
       setEmail(user.email ?? null);
       setUserId(user.id);
 
+      // Load Additional Information (now on profiles)
+      const { data: profileRow, error: profErr } = await supa
+        .from("profiles")
+        .select("additional_information")
+        .eq("user_id", user.id) // <- key change
+        .maybeSingle();
+
+      if (
+        !profErr &&
+        profileRow &&
+        profileRow.additional_information !== undefined
+      ) {
+        setAdditionalInfo(profileRow.additional_information ?? "");
+      }
+
       // load contacts
       const { data: rows } = await supa
         .from("contacts")
@@ -867,7 +900,6 @@ export default function DashboardPage() {
     return newToken;
   }
 
-  /* ========== CREATE ========== */
   async function addContact(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!name || !phone || !userId) return;
@@ -995,6 +1027,53 @@ export default function DashboardPage() {
       alert("Update failed. Please check the number and try again.");
     }
   }
+  async function writeAdditionalInfoNow(text: string) {
+    if (!userId) return;
+    setAiSaving(true);
+    try {
+      // Option 1: UPSERT (works if you include user_id)
+      const { error } = await supa.from("profiles").upsert({
+        user_id: userId, // <- key change
+        additional_information: text,
+        updated_at: new Date().toISOString(),
+      });
+      // Option 2 (also fine): UPDATE
+      // const { error } = await supa
+      //   .from("profiles")
+      //   .update({ additional_information: text, updated_at: new Date().toISOString() })
+      //   .eq("user_id", userId);
+
+      if (error) throw error;
+      setAiSavedAt(new Date().toLocaleString());
+    } catch (e) {
+      console.error("Saving additional information failed:", e);
+      alert("Could not save additional information. Please try again.");
+    } finally {
+      setAiSaving(false);
+    }
+  }
+
+  // 5s debounce: call this from onChange
+  function updateAdditionalInformation(text: string) {
+    setAdditionalInfo(text);
+    aiLatestRef.current = text;
+
+    if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
+    aiTimerRef.current = setTimeout(() => {
+      aiTimerRef.current = null;
+      void writeAdditionalInfoNow(aiLatestRef.current);
+    }, 5000);
+  }
+  useEffect(() => {
+    return () => {
+      if (aiTimerRef.current) {
+        clearTimeout(aiTimerRef.current);
+        aiTimerRef.current = null;
+        if (aiLatestRef.current)
+          void writeAdditionalInfoNow(aiLatestRef.current);
+      }
+    };
+  }, []);
 
   /* ========== ESC to close modals ========== */
   useEffect(() => {
@@ -1166,7 +1245,7 @@ export default function DashboardPage() {
               placeholder="E.g., Allergic to penicillin. Asthma inhaler in bag. Emergency key with neighbor (Unit 3B)."
               maxLength={ADDITIONAL_INFO_MAX}
               value={additionalInfo}
-              onChange={(e) => setAdditionalInfo(e.target.value)}
+              onChange={(e) => updateAdditionalInformation(e.target.value)}
             />
 
             <StyledAdditionalInformationSectionActions>
@@ -1174,14 +1253,12 @@ export default function DashboardPage() {
                 {additionalInfo.length}/{ADDITIONAL_INFO_MAX}
               </Muted>
               <StyledAdditionalInformationSectionSubmitButton
-                // onClick={saveAdditionalInfo}
+                onClick={() => writeAdditionalInfoNow(additionalInfo)}
                 disabled={aiSaving}
               >
                 {aiSaving ? "Saving…" : "Save"}
               </StyledAdditionalInformationSectionSubmitButton>
             </StyledAdditionalInformationSectionActions>
-
-            {aiSavedAt && <Muted>Last saved: {aiSavedAt}</Muted>}
           </StyledAdditionalInformationSection>
         </LeftColumn>
 
@@ -1281,22 +1358,29 @@ export default function DashboardPage() {
 
             <Form onSubmit={addContact}>
               <Label htmlFor="name">Name</Label>
-              <Input
+              <RestrictedInput
                 id="name"
+                ariaLabel="Name"
                 placeholder="Enter contact name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={setName}
+                preset="name"
                 maxLength={60}
-                required
+                validate={validateName}
+                showCounter={false}
               />
 
               <Label htmlFor="relationship">Relationship</Label>
-              <Input
+              <RestrictedInput
                 id="relationship"
+                ariaLabel="Relationship"
                 placeholder="Parent, Partner, Friend…"
                 value={relationship}
-                onChange={(e) => setRelationship(e.target.value)}
+                onChange={setRelationship}
+                preset="name"
                 maxLength={32}
+                showValidity={false} // no error text for this one
+                showCounter={false}
               />
 
               <Label htmlFor="phone">Phone Number</Label>
@@ -1327,20 +1411,19 @@ export default function DashboardPage() {
                 </div>
 
                 <div style={{ width: "100%" }}>
-                  <Input
+                  <RestrictedInput
                     id="phone"
-                    style={{ width: "100%" }}
-                    placeholder="(123) 456-7890"
+                    ariaLabel="Phone Number"
+                    placeholder="(123) 456-7890 or +1…"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    onBlur={() => {
-                      const p = toE164WithCountry(phone, addCountry);
-                      if (p.ok) setPhone(p.e164);
-                    }}
+                    onChange={setPhone}
                     inputMode="tel"
                     maxLength={22}
-                    pattern="[\d\+\-\s\(\)]*"
-                    required
+                    blockEmoji
+                    // We keep country-aware validation, allowing local digits.
+                    // Final normalization still happens in addContact via toE164WithCountry.
+                    validate={validatePhoneByCountry}
+                    showCounter={false}
                   />
                 </div>
               </Row>
