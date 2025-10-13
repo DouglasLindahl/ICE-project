@@ -136,6 +136,23 @@ type Contact = {
   priority: number | null;
 };
 
+const LeftColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1.4; /* a bit wider than QR column */
+`;
+
+const RightColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  @media (max-width: 900px) {
+    order: -1; /* show QR first on small screens */
+  }
+`;
+
 const StyledDashboardPage = styled.div`
   position: relative;
   background-color: ${theme.colors.background};
@@ -299,7 +316,51 @@ const PanelBase = styled.section`
   }
 `;
 
-const StyledDashboardContactsSection = styled(PanelBase)``;
+const StyledAdditionalInformationSection = styled(PanelBase)`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const StyledAdditionalInformationSectionHeader = styled.h2`
+  font-weight: 400;
+  margin: 0 0 4px 0;
+  font-size: 20px;
+
+  @media (max-width: 480px) {
+    font-size: 18px;
+  }
+`;
+
+const StyledAdditionalInformationSectionTextarea = styled.textarea`
+  padding: 10px;
+  background-color: ${theme.colors.inputBackground};
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  min-height: 120px;
+  resize: vertical;
+`;
+
+const StyledAdditionalInformationSectionActions = styled.div`
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+`;
+
+const StyledAdditionalInformationSectionSubmitButton = styled.button`
+  font-size: 14px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background-color: ${theme.colors.accent};
+  border: none;
+`;
+
+const Muted = styled.span`
+  font-size: 12px;
+  opacity: 0.75;
+`;
 
 const StyledDashboardContactsSectionHeaderSection = styled.div`
   display: flex;
@@ -408,7 +469,7 @@ const IconButton = styled.button`
     height: 20px;
   }
 `;
-
+const StyledDashboardContactsSection = styled(PanelBase)``;
 const StyledDashboardQRCodeSection = styled(PanelBase)`
   @media (max-width: 900px) {
     order: -1; /* show QR first on small screens */
@@ -613,14 +674,6 @@ const HiddenSelect = styled.select`
   cursor: pointer;
 `;
 
-const Select = styled.select`
-  padding: 10px;
-  background-color: ${theme.colors.inputBackground};
-  border-radius: 10px;
-  border: none;
-  font-size: 14px;
-`;
-
 const Submit = styled.button`
   font-size: 14px;
   border-radius: 10px;
@@ -707,6 +760,11 @@ export default function DashboardPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Additional info state
+  const [additionalInfo, setAdditionalInfo] = useState("");
+  const [aiSaving, setAiSaving] = useState(false);
+  const [aiSavedAt, setAiSavedAt] = useState<string | null>(null);
+  const ADDITIONAL_INFO_MAX = 1000;
 
   // QR state
   const [publicUrl, setPublicUrl] = useState<string | null>(null);
@@ -1043,128 +1101,162 @@ export default function DashboardPage() {
       </StyledDashboardHeader>
 
       <StyledDashboardInfoSection>
-        {/* Contacts */}
-        <StyledDashboardContactsSection>
-          <StyledDashboardContactsSectionHeaderSection>
-            <StyledDashboardContactsSectionHeader>
-              Emergency Contacts
-            </StyledDashboardContactsSectionHeader>
-            <StyledDashboardContactsSectionAddContactButton
-              onClick={() => setShowAdd(true)}
-            >
-              + Add Contact
-            </StyledDashboardContactsSectionAddContactButton>
-          </StyledDashboardContactsSectionHeaderSection>
+        {/* LEFT COLUMN: Contacts + Additional Info */}
+        <LeftColumn>
+          {/* Contacts */}
+          <StyledDashboardContactsSection>
+            <StyledDashboardContactsSectionHeaderSection>
+              <StyledDashboardContactsSectionHeader>
+                Emergency Contacts
+              </StyledDashboardContactsSectionHeader>
+              <StyledDashboardContactsSectionAddContactButton
+                onClick={() => setShowAdd(true)}
+              >
+                + Add Contact
+              </StyledDashboardContactsSectionAddContactButton>
+            </StyledDashboardContactsSectionHeaderSection>
 
-          <StyledDashboardContactsSectionContactCardSection>
-            {contacts.length === 0 && (
-              <p style={{ opacity: 0.7, margin: 0 }}>No contacts yet.</p>
+            <StyledDashboardContactsSectionContactCardSection>
+              {contacts.length === 0 && (
+                <p style={{ opacity: 0.7, margin: 0 }}>No contacts yet.</p>
+              )}
+
+              {contacts.map((c) => (
+                <StyledDashboardContactsSectionContactCard key={c.id}>
+                  <StyledDashboardContactsSectionContactCardIcon
+                    src="/telephone.png"
+                    alt=""
+                  />
+                  <StyledDashboardContactsSectionContactCardInfoSection>
+                    <StyledDashboardContactsSectionContactCardName>
+                      {c.name} ({c.relationship || "Contact"})
+                    </StyledDashboardContactsSectionContactCardName>
+                    <StyledDashboardContactsSectionContactCardNumber>
+                      {c.phone_e164}
+                    </StyledDashboardContactsSectionContactCardNumber>
+                  </StyledDashboardContactsSectionContactCardInfoSection>
+
+                  <StyledDashboardContactsSectionContactCardButtonSection>
+                    <IconButton
+                      onClick={() => openEdit(c)}
+                      aria-label="Edit contact"
+                    >
+                      <img src="/edit.png" alt="Edit" />
+                    </IconButton>
+                    <IconButton
+                      onClick={() => openDelete(c)}
+                      aria-label="Delete contact"
+                    >
+                      <img src="/delete.png" alt="Delete" />
+                    </IconButton>
+                  </StyledDashboardContactsSectionContactCardButtonSection>
+                </StyledDashboardContactsSectionContactCard>
+              ))}
+            </StyledDashboardContactsSectionContactCardSection>
+          </StyledDashboardContactsSection>
+
+          {/* Additional Information (now directly under Contacts) */}
+          <StyledAdditionalInformationSection>
+            <StyledAdditionalInformationSectionHeader>
+              Additional Information
+            </StyledAdditionalInformationSectionHeader>
+
+            <StyledAdditionalInformationSectionTextarea
+              id="additionalInfo"
+              placeholder="E.g., Allergic to penicillin. Asthma inhaler in bag. Emergency key with neighbor (Unit 3B)."
+              maxLength={ADDITIONAL_INFO_MAX}
+              value={additionalInfo}
+              onChange={(e) => setAdditionalInfo(e.target.value)}
+            />
+
+            <StyledAdditionalInformationSectionActions>
+              <Muted>
+                {additionalInfo.length}/{ADDITIONAL_INFO_MAX}
+              </Muted>
+              <StyledAdditionalInformationSectionSubmitButton
+                // onClick={saveAdditionalInfo}
+                disabled={aiSaving}
+              >
+                {aiSaving ? "Saving…" : "Save"}
+              </StyledAdditionalInformationSectionSubmitButton>
+            </StyledAdditionalInformationSectionActions>
+
+            {aiSavedAt && <Muted>Last saved: {aiSavedAt}</Muted>}
+          </StyledAdditionalInformationSection>
+        </LeftColumn>
+
+        {/* RIGHT COLUMN: QR */}
+        <RightColumn>
+          <StyledDashboardQRCodeSection>
+            <StyledDashboardQRCodeSectionHeaderSection>
+              <StyledDashboardQRCodeSectionHeader>
+                Your Emergency QR Code
+              </StyledDashboardQRCodeSectionHeader>
+            </StyledDashboardQRCodeSectionHeaderSection>
+
+            {publicUrl ? (
+              <StyledDashboardQRCodeSectionQRCodeImageSection>
+                <QrCanvas text={publicUrl} />
+              </StyledDashboardQRCodeSectionQRCodeImageSection>
+            ) : (
+              <p>Loading QR…</p>
             )}
 
-            {contacts.map((c) => (
-              <StyledDashboardContactsSectionContactCard key={c.id}>
-                <StyledDashboardContactsSectionContactCardIcon
-                  src="/telephone.png"
-                  alt=""
-                />
-                <StyledDashboardContactsSectionContactCardInfoSection>
-                  <StyledDashboardContactsSectionContactCardName>
-                    {c.name} ({c.relationship || "Contact"})
-                  </StyledDashboardContactsSectionContactCardName>
-                  <StyledDashboardContactsSectionContactCardNumber>
-                    {c.phone_e164}
-                  </StyledDashboardContactsSectionContactCardNumber>
-                </StyledDashboardContactsSectionContactCardInfoSection>
+            <StyledDashboardQRCodeSectionQRCodeTextSection>
+              <StyledDashboardQRCodeSectionSubHeader>
+                Scan to access emergency contacts
+              </StyledDashboardQRCodeSectionSubHeader>
+              <StyledDashboardQRCodeSectionSubText>
+                Anyone can scan this code to see your emergency contact
+                information you chose to share.
+              </StyledDashboardQRCodeSectionSubText>
+            </StyledDashboardQRCodeSectionQRCodeTextSection>
 
-                <StyledDashboardContactsSectionContactCardButtonSection>
-                  <IconButton
-                    onClick={() => openEdit(c)}
-                    aria-label="Edit contact"
-                  >
-                    <img src="/edit.png" alt="Edit" />
-                  </IconButton>
-                  <IconButton
-                    onClick={() => openDelete(c)}
-                    aria-label="Delete contact"
-                  >
-                    <img src="/delete.png" alt="Delete" />
-                  </IconButton>
-                </StyledDashboardContactsSectionContactCardButtonSection>
-              </StyledDashboardContactsSectionContactCard>
-            ))}
-          </StyledDashboardContactsSectionContactCardSection>
-        </StyledDashboardContactsSection>
+            <StyledDashboardQRCodeSectionQRCodeButtonsSection>
+              <StyledDashboardQRCodeSectionQRCodeDownloadButton
+                onClick={() => {
+                  const canvas = document.querySelector(
+                    "canvas"
+                  ) as HTMLCanvasElement | null;
+                  if (!canvas) return;
+                  const link = document.createElement("a");
+                  link.href = canvas.toDataURL("image/png");
+                  link.download = "beacon-qr.png";
+                  link.click();
+                }}
+              >
+                <img src="/download.png" alt="" width={16} height={16} />
+                Download
+              </StyledDashboardQRCodeSectionQRCodeDownloadButton>
 
-        {/* QR section */}
-        <StyledDashboardQRCodeSection>
-          <StyledDashboardQRCodeSectionHeaderSection>
-            <StyledDashboardQRCodeSectionHeader>
-              Your Emergency QR Code
-            </StyledDashboardQRCodeSectionHeader>
-          </StyledDashboardQRCodeSectionHeaderSection>
+              <StyledDashboardQRCodeSectionQRCodeShareButton
+                onClick={async () => {
+                  if (!publicUrl) return;
+                  if (navigator.share) {
+                    try {
+                      await navigator.share({
+                        title: "My emergency contacts",
+                        url: publicUrl,
+                      });
+                    } catch {}
+                  } else {
+                    await navigator.clipboard.writeText(publicUrl);
+                    alert("Link copied!");
+                  }
+                }}
+              >
+                <img src="/share.png" alt="" width={16} height={16} />
+                Share
+              </StyledDashboardQRCodeSectionQRCodeShareButton>
+            </StyledDashboardQRCodeSectionQRCodeButtonsSection>
 
-          {publicUrl ? (
-            <StyledDashboardQRCodeSectionQRCodeImageSection>
-              <QrCanvas text={publicUrl} />
-            </StyledDashboardQRCodeSectionQRCodeImageSection>
-          ) : (
-            <p>Loading QR…</p>
-          )}
-
-          <StyledDashboardQRCodeSectionQRCodeTextSection>
-            <StyledDashboardQRCodeSectionSubHeader>
-              Scan to access emergency contacts
-            </StyledDashboardQRCodeSectionSubHeader>
-            <StyledDashboardQRCodeSectionSubText>
-              Anyone can scan this code to see your emergency contact
-              information you chose to share.
-            </StyledDashboardQRCodeSectionSubText>
-          </StyledDashboardQRCodeSectionQRCodeTextSection>
-
-          <StyledDashboardQRCodeSectionQRCodeButtonsSection>
-            <StyledDashboardQRCodeSectionQRCodeDownloadButton
-              onClick={() => {
-                const canvas = document.querySelector(
-                  "canvas"
-                ) as HTMLCanvasElement | null;
-                if (!canvas) return;
-                const link = document.createElement("a");
-                link.href = canvas.toDataURL("image/png");
-                link.download = "beacon-qr.png";
-                link.click();
-              }}
-            >
-              <img src="/download.png" alt="" width={16} height={16} />
-              Download
-            </StyledDashboardQRCodeSectionQRCodeDownloadButton>
-
-            <StyledDashboardQRCodeSectionQRCodeShareButton
-              onClick={async () => {
-                if (!publicUrl) return;
-                if (navigator.share) {
-                  try {
-                    await navigator.share({
-                      title: "My emergency contacts",
-                      url: publicUrl,
-                    });
-                  } catch {}
-                } else {
-                  await navigator.clipboard.writeText(publicUrl);
-                  alert("Link copied!");
-                }
-              }}
-            >
-              <img src="/share.png" alt="" width={16} height={16} />
-              Share
-            </StyledDashboardQRCodeSectionQRCodeShareButton>
-          </StyledDashboardQRCodeSectionQRCodeButtonsSection>
-
-          <StyledDashboardQRCodeSectionQRCodeDisclaimer>
-            Print this QR on keychains, wristbands, or wallet cards for quick
-            emergency access. You can also visit our shop to purchase already
-            made items, ready for immediate use.
-          </StyledDashboardQRCodeSectionQRCodeDisclaimer>
-        </StyledDashboardQRCodeSection>
+            <StyledDashboardQRCodeSectionQRCodeDisclaimer>
+              Print this QR on keychains, wristbands, or wallet cards for quick
+              emergency access. You can also visit our shop to purchase already
+              made items, ready for immediate use.
+            </StyledDashboardQRCodeSectionQRCodeDisclaimer>
+          </StyledDashboardQRCodeSection>
+        </RightColumn>
       </StyledDashboardInfoSection>
 
       {/* Add Contact Modal */}
