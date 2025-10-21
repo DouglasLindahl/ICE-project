@@ -11,6 +11,17 @@ import {
   RestrictedInput,
   validateName,
 } from "@/components/RestrictedInput/page";
+import {
+  getSessionUser,
+  fetchProfile,
+  fetchContacts as loadContacts,
+  insertContact,
+  updateContact as patchContact,
+  removeContact as deleteContact,
+  getOrCreatePublicToken,
+  buildPublicUrl,
+  updateAdditionalInfo as upsertAdditionalInfo,
+} from "../utils";
 
 /* ============================
    Country data & phone helpers
@@ -825,8 +836,7 @@ export default function DashboardPage() {
     let unsub: { unsubscribe: () => void } | null = null;
 
     (async () => {
-      const { data: sessionData } = await supa.auth.getSession();
-      const user = sessionData.session?.user ?? null;
+      const user = await getSessionUser(supa);
       if (!user) {
         router.replace("/login");
         return;
@@ -836,34 +846,21 @@ export default function DashboardPage() {
       setEmail(user.email ?? null);
       setUserId(user.id);
 
-      // Load Additional Information (now on profiles)
-      const { data: profileRow, error: profErr } = await supa
-        .from("profiles")
-        .select("additional_information")
-        .eq("user_id", user.id) // <- key change
-        .maybeSingle();
-
-      if (
-        !profErr &&
-        profileRow &&
-        profileRow.additional_information !== undefined
-      ) {
-        setAdditionalInfo(profileRow.additional_information ?? "");
-      }
-
-      // load contacts
-      const { data: rows } = await supa
-        .from("contacts")
-        .select("id,name,relationship,phone_e164,priority")
-        .order("priority", { ascending: true });
+      // Profile
+      const profile = await fetchProfile(supa, user.id);
       if (!mounted) return;
-      setContacts(rows ?? []);
+      setAdditionalInfo(profile?.additional_information ?? "");
 
-      // ensure public link (token) and build URL
-      const t = await ensurePublicLink(user.id);
+      // Contacts
+      const rows = await loadContacts(supa);
+      if (!mounted) return;
+      setContacts(rows);
+
+      // Public URL (QR)
+      const token = await getOrCreatePublicToken(supa, user.id, generateToken);
       if (!mounted) return;
       const origin = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
-      setPublicUrl(`${origin}/qr/${t}`);
+      setPublicUrl(buildPublicUrl(token, origin));
 
       // auth listener
       const { data: sub } = supa.auth.onAuthStateChange((_e, session) => {
@@ -880,26 +877,6 @@ export default function DashboardPage() {
     };
   }, [router, supa]);
 
-  async function ensurePublicLink(userId: string) {
-    const { data: existing } = await supa
-      .from("public_pages")
-      .select("token,is_active")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (existing?.token && existing.is_active) return existing.token;
-
-    const newToken = generateToken();
-    const { error } = await supa.from("public_pages").upsert({
-      user_id: userId,
-      token: newToken,
-      is_active: true,
-      last_rotated_at: new Date().toISOString(),
-    });
-    if (error) throw error;
-    return newToken;
-  }
-
   async function addContact(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!name || !phone || !userId) return;
@@ -914,22 +891,14 @@ export default function DashboardPage() {
       const phone_e164 = parsed.e164;
       const priority = (contacts?.length ?? 0) + 1;
 
-      const { error } = await supa.from("contacts").insert([
-        {
-          user_id: userId,
-          name,
-          relationship: relationship || null,
-          phone_e164,
-          priority,
-        },
-      ]);
-      if (error) throw error;
-
-      const { data: rows } = await supa
-        .from("contacts")
-        .select("id,name,relationship,phone_e164,priority")
-        .order("priority", { ascending: true });
-      setContacts(rows ?? []);
+      await insertContact(supa, {
+        user_id: userId,
+        name,
+        relationship: relationship || null,
+        phone_e164,
+        priority,
+      });
+      setContacts(await loadContacts(supa));
       setShowAdd(false);
       setName("");
       setRelationship("");
@@ -953,17 +922,8 @@ export default function DashboardPage() {
     setDeleting(true);
     try {
       setContacts((cs) => cs.filter((x) => x.id !== deleteTarget.id));
-      const { error } = await supa
-        .from("contacts")
-        .delete()
-        .eq("id", deleteTarget.id);
-      if (error) throw error;
-
-      const { data: rows } = await supa
-        .from("contacts")
-        .select("id,name,relationship,phone_e164,priority")
-        .order("priority", { ascending: true });
-      setContacts(rows ?? []);
+      await deleteContact(supa, deleteTarget.id);
+      setContacts(await loadContacts(supa));
       setShowDelete(false);
       setDeleteTarget(null);
     } catch (e) {
@@ -998,15 +958,11 @@ export default function DashboardPage() {
       }
       const phone_e164 = parsed.e164;
 
-      const { error } = await supa
-        .from("contacts")
-        .update({
-          name: editName,
-          relationship: editRelationship || null,
-          phone_e164,
-        })
-        .eq("id", editId);
-      if (error) throw error;
+      await patchContact(supa, editId, {
+        name: editName,
+        relationship: editRelationship || null,
+        phone_e164,
+      });
 
       setContacts((cs) =>
         cs.map((c) =>
@@ -1031,19 +987,8 @@ export default function DashboardPage() {
     if (!userId) return;
     setAiSaving(true);
     try {
-      // Option 1: UPSERT (works if you include user_id)
-      const { error } = await supa.from("profiles").upsert({
-        user_id: userId, // <- key change
-        additional_information: text,
-        updated_at: new Date().toISOString(),
-      });
-      // Option 2 (also fine): UPDATE
-      // const { error } = await supa
-      //   .from("profiles")
-      //   .update({ additional_information: text, updated_at: new Date().toISOString() })
-      //   .eq("user_id", userId);
+      await upsertAdditionalInfo(supa, userId, text);
 
-      if (error) throw error;
       setAiSavedAt(new Date().toLocaleString());
     } catch (e) {
       console.error("Saving additional information failed:", e);

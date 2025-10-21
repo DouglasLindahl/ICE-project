@@ -13,6 +13,7 @@ type Preset =
 type RestrictedInputProps = {
   value: string;
   onChange: (v: string) => void;
+  type?: React.HTMLInputTypeAttribute;
 
   // Behavior
   preset?: Preset;
@@ -135,6 +136,7 @@ export function RestrictedInput({
   transform,
   validate,
   placeholder,
+  type = "text",
   name,
   disabled,
   inputMode,
@@ -189,6 +191,7 @@ export function RestrictedInput({
         id={id}
         name={name}
         placeholder={placeholder}
+        type={type}
         value={processed}
         onChange={(e) => onChange(e.target.value)}
         onBlur={() => setTouched(true)}

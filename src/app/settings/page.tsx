@@ -4,6 +4,21 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browserClient";
 import { generateToken } from "@/utils/token";
 import styled, { css } from "styled-components";
+import {
+  buildPublicUrl,
+  fetchContacts,
+  fetchProfile,
+  getOrCreatePublicToken,
+  getSessionUser,
+  updateAdditionalInfo,
+  upsertProfile,
+} from "../utils";
+import {
+  RestrictedInput,
+  validateE164,
+  validateName,
+} from "@/components/RestrictedInput/page";
+import { profile } from "console";
 
 // Types
 type Contact = {
@@ -212,7 +227,11 @@ export default function Settings() {
 
   // Profile
   const [fullName, setFullName] = useState("");
+  const [originalFullName, setOriginalFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [originalPhone, setOriginalPhone] = useState("");
+  const [additionalInfo, setAdditionalInfo] = useState("");
+  const [originalAdditionalInfo, setOriginalAdditionalInfo] = useState("");
 
   // Notifications
   const [emailUpdates, setEmailUpdates] = useState<boolean>(true);
@@ -225,7 +244,6 @@ export default function Settings() {
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
 
   // Misc (you already had these)
-  const [additionalInfo, setAdditionalInfo] = useState("");
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [publicUrl, setPublicUrl] = useState<string | null>(null);
@@ -242,8 +260,7 @@ export default function Settings() {
     let unsub: { unsubscribe: () => void } | null = null;
 
     (async () => {
-      const { data: sessionData } = await supa.auth.getSession();
-      const user = sessionData.session?.user ?? null;
+      const user = await getSessionUser(supa);
       if (!user) {
         router.replace("/login");
         return;
@@ -253,37 +270,26 @@ export default function Settings() {
       setEmail(user.email ?? null);
       setUserId(user.id);
 
-      // Load Profile
-      const { data: profileRow } = await supa
-        .from("profiles")
-        .select(
-          "full_name, phone_e164, additional_information, email_updates, marketing_emails, qr_code_scans"
-        )
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (profileRow) {
-        setFullName(profileRow.full_name ?? "");
-        setPhone(profileRow.phone_e164 ?? "");
-        setAdditionalInfo(profileRow.additional_information ?? "");
-        setEmailUpdates(profileRow.email_updates ?? true);
-        setMarketingEmails(profileRow.marketing_emails ?? false);
-        setQrCodeScans(profileRow.qr_code_scans ?? true);
-      }
-
-      // Load contacts (unchanged from your code, kept as example usage)
-      const { data: rows } = await supa
-        .from("contacts")
-        .select("id,name,relationship,phone_e164,priority")
-        .order("priority", { ascending: true });
+      // Profile
+      const profile = await fetchProfile(supa, user.id);
       if (!mounted) return;
-      setContacts(rows ?? []);
+      setFullName(profile?.display_name ?? "");
+      setOriginalFullName(profile?.display_name ?? "");
+      setPhone(profile?.phone_number ?? "");
+      setOriginalPhone(profile?.phone_number ?? "");
+      setAdditionalInfo(profile?.additional_information ?? "");
+      setOriginalAdditionalInfo(profile?.additional_information ?? "");
 
-      // Ensure public link (token) and build URL
-      const t = await ensurePublicLink(user.id);
+      // Contacts
+      const rows = await fetchContacts(supa);
+      if (!mounted) return;
+      setContacts(rows);
+
+      // Public URL (QR)
+      const token = await getOrCreatePublicToken(supa, user.id, generateToken);
       if (!mounted) return;
       const origin = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
-      setPublicUrl(`${origin}/qr/${t}`);
+      setPublicUrl(buildPublicUrl(token, origin));
 
       // auth listener
       const { data: sub } = supa.auth.onAuthStateChange((_e, session) => {
@@ -294,120 +300,87 @@ export default function Settings() {
       setLoading(false);
     })();
 
-    async function ensurePublicLink(userId: string) {
-      const { data: existing } = await supa
-        .from("public_pages")
-        .select("token,is_active")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (existing?.token && existing.is_active) return existing.token;
-
-      const newToken = generateToken();
-      const { error } = await supa.from("public_pages").upsert({
-        user_id: userId,
-        token: newToken,
-        is_active: true,
-        last_rotated_at: new Date().toISOString(),
-      });
-      if (error) throw error;
-      return newToken;
-    }
-
     return () => {
       mounted = false;
       unsub?.unsubscribe?.();
     };
   }, [router, supa]);
 
-  // Handlers
-  const saveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userId) return;
-    const { error } = await supa.from("profiles").upsert({
+  const saveProfile = async () => {
+    const row = {
       user_id: userId,
-      full_name: fullName,
-      phone_e164: phone,
+      display_name: fullName,
+      phone_number: phone,
       additional_information: additionalInfo,
-    });
-    if (error) return setBanner({ type: "error", msg: error.message });
-    setBanner({ type: "success", msg: "Profile updated." });
-  };
+    };
 
-  const saveNotifications = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userId) return;
-    const { error } = await supa.from("profiles").upsert({
-      user_id: userId,
-      email_updates: emailUpdates,
-      marketing_emails: marketingEmails,
-      qr_code_scans: qrCodeScans,
-    });
-    if (error) return setBanner({ type: "error", msg: error.message });
-    setBanner({ type: "success", msg: "Notification preferences saved." });
+    try {
+      await upsertProfile(supa, row);
+      console.log("Profile saved!");
+    } catch (err) {
+      console.error("Error saving profile:", err);
+    }
   };
-
-  const changePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const changePassword = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setBanner(null);
-    if (!email)
-      return setBanner({ type: "error", msg: "No email in session." });
-    if (newPassword !== confirmNewPassword)
-      return setBanner({ type: "error", msg: "New passwords do not match." });
 
-    // Re-auth by signing in with current password
-    const { error: signInErr } = await supa.auth.signInWithPassword({
-      email,
-      password: currentPassword,
-    });
-    if (signInErr) {
-      return setBanner({
+    if (!email) {
+      setBanner({ type: "error", msg: "No email found in session." });
+      return;
+    }
+
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      setBanner({ type: "error", msg: "Please fill out all password fields." });
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setBanner({ type: "error", msg: "New passwords do not match." });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setBanner({
         type: "error",
-        msg: "Current password is incorrect.",
+        msg: "Password must be at least 8 characters.",
+      });
+      return;
+    }
+
+    try {
+      // 1) Re-authenticate to be safe
+      const { error: signInErr } = await supa.auth.signInWithPassword({
+        email,
+        password: currentPassword,
+      });
+      if (signInErr) throw signInErr;
+
+      // 2) Update password
+      const { error: updateErr } = await supa.auth.updateUser({
+        password: newPassword,
+      });
+      if (updateErr) throw updateErr;
+
+      setBanner({ type: "success", msg: "Password changed successfully." });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch (err: any) {
+      setBanner({
+        type: "error",
+        msg: err?.message ?? "Could not change password.",
       });
     }
-
-    const { error: updateErr } = await supa.auth.updateUser({
-      password: newPassword,
-    });
-    if (updateErr) return setBanner({ type: "error", msg: updateErr.message });
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmNewPassword("");
-    setBanner({ type: "success", msg: "Password changed." });
   };
 
-  const exportData = async () => {
-    try {
-      setBanner({ type: "info", msg: "Preparing your export…" });
-      // Implement an API route that zips user data and returns a download URL
-      const res = await fetch("/api/export", { method: "POST" });
-      if (!res.ok) throw new Error("Export failed");
-      const { url } = await res.json();
-      window.location.href = url; // trigger download
-      setBanner({ type: "success", msg: "Export started." });
-    } catch (e: any) {
-      setBanner({ type: "error", msg: e.message ?? "Export failed" });
-    }
-  };
-
-  const deleteAccount = async () => {
-    const sure = window.prompt(
-      "Type DELETE to confirm you want to permanently delete your account."
-    );
-    if (sure !== "DELETE") return;
-
-    try {
-      setBanner({ type: "info", msg: "Deleting account…" });
-      // Implement securely server-side (Edge Function / API Route) as this requires elevated privileges
-      const res = await fetch("/api/delete-account", { method: "POST" });
-      if (!res.ok) throw new Error("Delete failed");
-      // After deletion, sign out and redirect
-      await supa.auth.signOut();
-      router.replace("/goodbye");
-    } catch (e: any) {
-      setBanner({ type: "error", msg: e.message ?? "Delete failed" });
-    }
+  const saveNotifications = () => {};
+  const exportData = () => {};
+  const deleteAccount = () => {};
+  const resetProfile = () => {
+    setFullName(originalFullName);
+    setPhone(originalPhone);
+    setAdditionalInfo(originalAdditionalInfo);
   };
 
   const tabs = useMemo(
@@ -463,39 +436,77 @@ export default function Settings() {
           {tab === "profile" && (
             <div>
               <SectionTitle>Profile</SectionTitle>
-              <Form onSubmit={saveProfile}>
+              <Form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  saveProfile();
+                }}
+              >
                 <Field>
                   <span>Full name</span>
-                  <Input
+                  <RestrictedInput
                     value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
+                    onChange={setFullName}
                     placeholder="Jane Doe"
+                    name="display_name"
+                    preset="name"
+                    blockEmoji
+                    maxLength={80}
+                    validate={validateName}
+                    autoComplete="name"
+                    ariaLabel="Full name"
+                    showCounter
+                    showValidity
+                    inputMode="text"
                   />
                 </Field>
+
                 <Field>
                   <span>Phone number</span>
-                  <Input
+                  <RestrictedInput
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={setPhone}
                     placeholder="+15551234567"
+                    name="phone_number"
+                    preset="e164"
+                    blockEmoji
+                    maxLength={16}
+                    validate={validateE164}
+                    inputMode="tel"
+                    autoComplete="tel"
+                    ariaLabel="Phone number"
+                    showCounter
+                    showValidity
                   />
                 </Field>
+
                 <Field>
                   <span>Additional information</span>
-                  <Input
+                  <RestrictedInput
                     value={additionalInfo}
-                    onChange={(e) => setAdditionalInfo(e.target.value)}
+                    onChange={setAdditionalInfo}
                     placeholder="Notes, preferences, etc."
+                    name="additional_information"
+                    preset="none"
+                    // choose if you want to block emojis here:
+                    // blockEmoji
+                    maxLength={280}
+                    ariaLabel="Additional information"
+                    showCounter
+                    showValidity={false}
+                    inputMode="text"
                   />
                 </Field>
+
                 <Row>
-                  <Button type="submit">Save changes</Button>
+                  <Button type="submit" disabled={loading || !userId}>
+                    Save changes
+                  </Button>
                   <Button
                     type="button"
                     $variant="ghost"
                     onClick={() => {
-                      setFullName("");
-                      setPhone("");
+                      resetProfile();
                     }}
                   >
                     Reset
@@ -511,30 +522,66 @@ export default function Settings() {
               <Form onSubmit={changePassword}>
                 <Field>
                   <span>Current password</span>
-                  <Input
+                  <RestrictedInput
                     type="password"
                     value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    onChange={setCurrentPassword}
+                    name="current_password"
+                    autoComplete="current-password"
+                    ariaLabel="Current password"
+                    maxLength={128}
+                    showValidity={false}
                   />
                 </Field>
+
                 <Field>
                   <span>New password</span>
-                  <Input
+                  <RestrictedInput
                     type="password"
                     value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
+                    onChange={setNewPassword}
+                    name="new_password"
+                    autoComplete="new-password"
+                    ariaLabel="New password"
+                    maxLength={128}
+                    showValidity
                   />
                 </Field>
+
                 <Field>
                   <span>Confirm new password</span>
-                  <Input
+                  <RestrictedInput
                     type="password"
                     value={confirmNewPassword}
-                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    onChange={setConfirmNewPassword}
+                    name="confirm_new_password"
+                    autoComplete="new-password"
+                    ariaLabel="Confirm new password"
+                    maxLength={128}
+                    validate={(s) =>
+                      !s
+                        ? null
+                        : s !== newPassword
+                        ? "Passwords don't match."
+                        : null
+                    }
+                    showValidity
                   />
                 </Field>
+
                 <Row>
-                  <Button type="submit">Change password</Button>
+                  <Button
+                    type="submit"
+                    disabled={
+                      !currentPassword ||
+                      !newPassword ||
+                      !confirmNewPassword ||
+                      newPassword !== confirmNewPassword ||
+                      newPassword.length < 8
+                    }
+                  >
+                    Change password
+                  </Button>
                 </Row>
                 <Helper>
                   For security, we re-authenticate using your current password
@@ -547,7 +594,7 @@ export default function Settings() {
           {tab === "notifications" && (
             <div>
               <SectionTitle>Notifications</SectionTitle>
-              <Form onSubmit={saveNotifications}>
+              {/*  <Form onSubmit={saveNotifications}>
                 <CheckboxRow>
                   <input
                     type="checkbox"
@@ -575,7 +622,7 @@ export default function Settings() {
                 <Row>
                   <Button type="submit">Save preferences</Button>
                 </Row>
-              </Form>
+              </Form>*/}
             </div>
           )}
 
