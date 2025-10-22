@@ -3,12 +3,7 @@ import React, { useMemo, useState } from "react";
 import styled from "styled-components";
 import { theme } from "../../../styles/theme";
 
-type Preset =
-  | "none"
-  | "alphanumeric"
-  | "numeric"
-  | "e164" // digits with a single optional leading +
-  | "name"; // letters, spaces, basic punctuation
+type Preset = "none" | "alphanumeric" | "numeric" | "e164" | "name";
 
 type RestrictedInputProps = {
   value: string;
@@ -20,8 +15,8 @@ type RestrictedInputProps = {
   maxLength?: number;
   blockEmoji?: boolean;
   trim?: "none" | "start" | "end" | "both";
-  transform?: (v: string) => string; // e.g., v => v.toUpperCase()
-  validate?: (v: string) => string | null; // return error message or null
+  transform?: (v: string) => string;
+  validate?: (v: string) => string | null;
 
   // UI
   placeholder?: string;
@@ -33,6 +28,12 @@ type RestrictedInputProps = {
   showCounter?: boolean; // default true
   showValidity?: boolean; // default true
   className?: string;
+  multiline?: boolean;
+  rows?: number;
+
+  // Password helpers
+  showPasswordToggle?: boolean; // NEW: default true
+  passwordToggleAriaLabel?: string; // NEW: for accessibility
 
   // Accessibility
   id?: string;
@@ -41,10 +42,17 @@ type RestrictedInputProps = {
 const Wrapper = styled.div`
   display: grid;
   gap: 6px;
+  width: 100%;
+`;
+
+const FieldShell = styled.div`
+  position: relative;
+  width: 100%;
 `;
 
 const InputEl = styled.input<{ $invalid: boolean }>`
   padding: 10px;
+  width: 100%;
   background-color: ${theme.colors.inputBackground};
   border-radius: 10px;
   border: 1px solid
@@ -58,16 +66,41 @@ const InputEl = styled.input<{ $invalid: boolean }>`
   }
 `;
 
-const FooterRow = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+const EyeBtn = styled.button`
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  line-height: 0;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+  }
 `;
 
 const ErrorText = styled.span`
   color: #ef4444;
   font-size: 12px;
-  min-height: 1em;
+  &:empty {
+    display: none;
+  }
+`;
+
+const FooterRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 `;
 
 const Counter = styled.span`
@@ -78,7 +111,6 @@ const Counter = styled.span`
 /* =========================
    Character filtering utils
    ========================= */
-
 const EMOJI_REGEX =
   /([\u2700-\u27BF]|[\uE000-\uF8FF]|[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u26FF])/g;
 
@@ -106,15 +138,12 @@ function presetFilter(preset: Preset, raw: string): string {
     case "numeric":
       return raw.replace(/[^\d]+/g, "");
     case "e164": {
-      // allow digits and at most one leading '+'
       let s = raw.replace(/[^\d+]+/g, "");
-      // remove all '+' then re-add only if first char was '+'
       const hadLeadingPlus = s.startsWith("+");
       s = s.replace(/\+/g, "");
       return hadLeadingPlus ? `+${s}` : s;
     }
     case "name":
-      // letters, spaces, hyphen, apostrophe, period
       return raw.replace(/[^a-zA-Z \-'.]+/g, "");
     case "none":
     default:
@@ -125,10 +154,11 @@ function presetFilter(preset: Preset, raw: string): string {
 /* =========================
    Component
    ========================= */
-
 export function RestrictedInput({
   value,
   onChange,
+  multiline,
+  rows,
   preset = "none",
   maxLength,
   blockEmoji = false,
@@ -146,75 +176,135 @@ export function RestrictedInput({
   showValidity = true,
   className,
   id,
+  showPasswordToggle = true,
+  passwordToggleAriaLabel = "Toggle password visibility",
 }: RestrictedInputProps) {
   const [touched, setTouched] = useState(false);
+  const [showPw, setShowPw] = useState(false);
 
   const processed = useMemo(() => {
     let v = value ?? "";
-
-    // 1) optional emoji stripping
     if (blockEmoji) v = stripEmoji(v);
-
-    // 2) preset filtering
     v = presetFilter(preset, v);
-
-    // 3) optional transform (e.g., uppercase)
     if (transform) v = transform(v);
-
-    // 4) optional trimming
     v = applyTrim(v, trim);
-
-    // 5) enforce maxLength as a hard ceiling
-    if (typeof maxLength === "number" && maxLength >= 0) {
+    if (typeof maxLength === "number" && maxLength >= 0)
       v = v.slice(0, maxLength);
-    }
     return v;
   }, [value, preset, blockEmoji, transform, trim, maxLength]);
 
-  // compute validation message
   const errorMsg = useMemo(() => {
-    if (!showValidity) return null;
-    if (!validate) return null;
+    if (!showValidity || !validate) return null;
     return validate(processed);
   }, [processed, validate, showValidity]);
 
-  // If our processing changed the value, push it up
-  // (keeps parent state always "legal")
   React.useEffect(() => {
     if (processed !== value) onChange(processed);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [processed]);
 
+  const hasCounter = showCounter && typeof maxLength === "number";
+  const hasError = showValidity && touched && !!errorMsg;
+
+  const isPasswordField = !multiline && type === "password";
+  const effectiveType = isPasswordField ? (showPw ? "text" : "password") : type;
+
   return (
     <Wrapper className={className}>
-      <InputEl
-        id={id}
-        name={name}
-        placeholder={placeholder}
-        type={type}
-        value={processed}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={() => setTouched(true)}
-        disabled={disabled}
-        inputMode={inputMode}
-        autoComplete={autoComplete}
-        aria-label={ariaLabel}
-        aria-invalid={!!errorMsg && touched}
-        $invalid={!!errorMsg && touched}
-      />
+      <FieldShell>
+        {multiline ? (
+          <InputEl
+            as="textarea"
+            rows={rows || 3}
+            id={id}
+            name={name}
+            placeholder={placeholder}
+            value={processed}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={() => setTouched(true)}
+            disabled={disabled}
+            inputMode={inputMode}
+            autoComplete={autoComplete}
+            aria-label={ariaLabel}
+            aria-invalid={!!errorMsg && touched}
+            $invalid={!!errorMsg && touched}
+          />
+        ) : (
+          <InputEl
+            id={id}
+            name={name}
+            placeholder={placeholder}
+            type={effectiveType}
+            value={processed}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={() => setTouched(true)}
+            disabled={disabled}
+            inputMode={inputMode}
+            autoComplete={autoComplete}
+            aria-label={ariaLabel}
+            aria-invalid={!!errorMsg && touched}
+            $invalid={!!errorMsg && touched}
+          />
+        )}
 
-      {(showCounter || showValidity) && (
+        {isPasswordField && showPasswordToggle && (
+          <EyeBtn
+            type="button"
+            aria-label={passwordToggleAriaLabel}
+            aria-pressed={showPw}
+            onMouseDown={(e) => e.preventDefault()} // keep focus in input
+            onClick={() => setShowPw((s) => !s)}
+            title={showPw ? "Hide password" : "Show password"}
+          >
+            {/* simple inline eye / eye-off icon */}
+            {showPw ? (
+              // eye-off
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.11 1 12c.64-1.51 1.62-2.89 2.82-4.06M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                <path d="M10.73 5.08A10.94 10.94 0 0 1 12 4c5 0 9.27 3.89 11 8- .37 .88 -.85 1.7 -1.43 2.44" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+              </svg>
+            ) : (
+              // eye
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            )}
+          </EyeBtn>
+        )}
+      </FieldShell>
+
+      {(hasCounter || hasError) && (
         <FooterRow>
-          <ErrorText role="alert" aria-live="polite">
-            {touched ? errorMsg : ""}
-          </ErrorText>
-          {showCounter && typeof maxLength === "number" ? (
-            <Counter>
-              {processed.length}/{maxLength}
-            </Counter>
+          {hasError ? (
+            <ErrorText role="alert" aria-live="polite">
+              {errorMsg}
+            </ErrorText>
           ) : (
             <span />
           )}
+          {hasCounter ? (
+            <Counter>
+              {processed.length}/{maxLength}
+            </Counter>
+          ) : null}
         </FooterRow>
       )}
     </Wrapper>
@@ -224,8 +314,6 @@ export function RestrictedInput({
 /* =========================
    Example validators (optional)
    ========================= */
-
-// Phone E.164 validator (use with preset="e164")
 export const validateE164 = (s: string) => {
   if (!s) return null;
   return /^\+\d{8,15}$/.test(s)
@@ -233,7 +321,6 @@ export const validateE164 = (s: string) => {
     : "Use international format like +14155552671 (8–15 digits).";
 };
 
-// Name validator (use with preset="name")
 export const validateName = (s: string) => {
   if (!s) return null;
   if (s.length < 2) return "Name must be at least 2 characters.";

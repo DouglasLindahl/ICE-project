@@ -1057,7 +1057,7 @@ export default function DashboardPage() {
           </StyledDashboardHeaderButton>
           <StyledDashboardHeaderButton
             onClick={async () => {
-              window.alert("Take user to settings");
+              router.replace("/settings");
             }}
           >
             <img src="setting.png" alt="" />
@@ -1185,12 +1185,18 @@ export default function DashboardPage() {
               Additional Information
             </StyledAdditionalInformationSectionHeader>
 
-            <StyledAdditionalInformationSectionTextarea
-              id="additionalInfo"
-              placeholder="E.g., Allergic to penicillin. Asthma inhaler in bag. Emergency key with neighbor (Unit 3B)."
-              maxLength={ADDITIONAL_INFO_MAX}
+            <RestrictedInput
               value={additionalInfo}
-              onChange={(e) => updateAdditionalInformation(e.target.value)}
+              onChange={setAdditionalInfo}
+              placeholder="Notes, preferences, etc."
+              name="additional_information"
+              preset="none"
+              maxLength={280}
+              ariaLabel="Additional information"
+              showCounter
+              showValidity={false}
+              inputMode="text"
+              multiline
             />
 
             <StyledAdditionalInformationSectionActions>
@@ -1403,22 +1409,34 @@ export default function DashboardPage() {
 
             <Form onSubmit={submitEdit}>
               <Label htmlFor="ename">Name</Label>
-              <Input
+              <RestrictedInput
                 id="ename"
+                ariaLabel="Name"
+                placeholder="Enter contact name"
                 value={editName}
-                onChange={(e) => setEditName(e.target.value)}
+                onChange={setEditName}
+                preset="name"
                 maxLength={60}
-                required
+                validate={validateName}
+                showCounter={false}
+                // required? Your original had required — add if desired:
+                // validate={(v) => (!v ? "Name is required." : validateName(v))}
               />
 
               <Label htmlFor="erel">Relationship</Label>
-              <Input
+              <RestrictedInput
                 id="erel"
+                ariaLabel="Relationship"
+                placeholder="Parent, Partner, Friend…"
                 value={editRelationship}
-                onChange={(e) => setEditRelationship(e.target.value)}
+                onChange={setEditRelationship}
+                preset="name"
                 maxLength={32}
+                showValidity={false}
+                showCounter={false}
               />
-              <Label htmlFor="phone">Phone Number</Label>
+
+              <Label htmlFor="ephone">Phone Number</Label>
               <Row>
                 <div>
                   <CountryField>
@@ -1446,19 +1464,22 @@ export default function DashboardPage() {
                 </div>
 
                 <div style={{ width: "100%" }}>
-                  <Input
+                  <RestrictedInput
                     id="ephone"
-                    style={{ width: "100%" }}
+                    ariaLabel="Phone Number"
+                    placeholder="(123) 456-7890 or +1…"
                     value={editPhone}
-                    onChange={(e) => setEditPhone(e.target.value)}
-                    onBlur={() => {
-                      const p = toE164WithCountry(editPhone, editCountry);
-                      if (p.ok) setEditPhone(p.e164);
-                    }}
+                    onChange={setEditPhone}
                     inputMode="tel"
                     maxLength={22}
-                    pattern="[\d\+\-\s\(\)]*"
-                    required
+                    blockEmoji
+                    // same validator pattern as Add modal, but using editCountry:
+                    validate={(v) => {
+                      if (!v) return "Phone is required.";
+                      const p = toE164WithCountry(v, editCountry);
+                      return p.ok ? null : p.reason;
+                    }}
+                    showCounter={false}
                   />
                 </div>
               </Row>

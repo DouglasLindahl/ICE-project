@@ -4,6 +4,43 @@ import { theme } from "../../../styles/theme";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/browserClient";
+import { RestrictedInput } from "@/components/RestrictedInput/page";
+
+// validators
+const validateEmail = (s: string) => {
+  if (!s) return null;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) ? null : "Enter a valid email.";
+};
+
+// strong password: 8+ chars, at least 1 upper, 1 lower, 1 number, 1 special
+const validatePwStrong = (s: string) => {
+  if (!s) return null; // let “required” be handled by button disable or server
+  if (s.length < 8) return "Use at least 8 characters.";
+  if (!/[A-Z]/.test(s)) return "Add at least one uppercase letter.";
+  if (!/[a-z]/.test(s)) return "Add at least one lowercase letter.";
+  if (!/[0-9]/.test(s)) return "Add at least one number.";
+  if (!/[!@#$%^&*()[\]{}._+\-=?<>;:,'"`~\\|/]/.test(s))
+    return "Add at least one special character.";
+  return null;
+};
+
+// compare with current password state (we’ll use inline arrow to capture it)
+const validatePwMatch = (s: string, pw: string) => {
+  if (!s) return null;
+  return s === pw ? null : "Passwords do not match.";
+};
+
+const validateName = (s: string) => {
+  if (!s) return null;
+  return s.length >= 2 ? null : "Name must be at least 2 characters.";
+};
+
+// country-aware phone validator using your existing toE164WithCountry
+const validatePhoneByCountry = (v: string, country: Country) => {
+  if (!v) return "Phone is required.";
+  const p = toE164WithCountry(v, country);
+  return p.ok ? null : p.reason;
+};
 
 /* ============================
    Country data & phone helpers
@@ -184,13 +221,9 @@ const Label = styled.label`
   font-size: 12px;
 `;
 
-const Input = styled.input`
+const Input = styled(RestrictedInput)`
   width: 100%;
-  padding: 8px;
-  border-radius: 6px;
-  border: none;
-  background-color: ${theme.colors.inputBackground};
-  font-size: 14px;
+  /* Optional: add overrides if you want to exactly match old visuals */
 `;
 
 const SubmitBtn = styled.button<{ disabled?: boolean }>`
@@ -211,6 +244,7 @@ const LinkBtn = styled.button`
   border: none;
   color: gray;
   margin-top: 16px;
+  margin-bottom: 16px;
   &:hover {
     cursor: pointer;
   }
@@ -251,7 +285,7 @@ const Form = styled.form`
 /* layout for country + phone */
 const Row = styled.div`
   display: flex;
-  align-items: center;
+  align-items: start;
   width: 100%;
   gap: 12px;
 `;
@@ -297,6 +331,7 @@ export default function Register() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   // country + phone
   const [addCountry, setAddCountry] = useState<Country>(COUNTRIES[0]);
@@ -320,6 +355,23 @@ export default function Register() {
     e.preventDefault();
     setErrorMsg(null);
     setInfoMsg(null);
+    const nameErr = validateName(fullName);
+    const emailErr = validateEmail(email);
+    const pwErr = validatePwStrong(password);
+    const matchErr = validatePwMatch(confirmPassword, password);
+    const phoneErr = phone ? validatePhoneByCountry(phone, addCountry) : null;
+
+    if (nameErr || emailErr || pwErr || matchErr || phoneErr) {
+      setErrorMsg(
+        nameErr ||
+          emailErr ||
+          pwErr ||
+          matchErr ||
+          phoneErr ||
+          "Please fix the errors above."
+      );
+      return;
+    }
     const nowIso = new Date().toISOString();
     const TERMS_VERSION = "2025-03-01";
 
@@ -401,12 +453,18 @@ export default function Register() {
         <Form onSubmit={handleRegister}>
           <Field>
             <Label htmlFor="fullName">Full Name</Label>
-            <Input
+            <RestrictedInput
               id="fullName"
+              name="full_name"
+              ariaLabel="Full Name"
               placeholder="Enter your full name"
               value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              onChange={setFullName}
+              preset="name"
               maxLength={60}
+              validate={validateName}
+              showValidity
+              showCounter={false}
             />
           </Field>
 
@@ -437,20 +495,27 @@ export default function Register() {
               </div>
 
               <div style={{ width: "90%" }}>
-                <Input
+                <RestrictedInput
                   id="phone"
-                  style={{ width: "100%" }}
+                  name="phone"
+                  ariaLabel="Phone Number"
                   placeholder="(123) 456-7890"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  onBlur={() => {
-                    const p = toE164WithCountry(phone, addCountry);
-                    if (p.ok) setPhone(p.e164);
-                  }}
+                  onChange={setPhone}
                   inputMode="tel"
                   maxLength={22}
-                  pattern="[\d\+\-\s\(\)]*"
-                  required
+                  blockEmoji
+                  // Show a friendly, country-aware error while typing:
+                  validate={(v) => validatePhoneByCountry(v, addCountry)}
+                  showCounter={false}
+                  showValidity
+                  // Optional: auto-normalize to E.164 on blur for UX
+                  // transform on blur is not built-in; do it here:
+                  // (keep as-is if you prefer only validating here and normalizing in handleRegister)
+                  // onBlur={() => {
+                  //   const p = toE164WithCountry(phone, addCountry);
+                  //   if (p.ok) setPhone(p.e164);
+                  // }}
                 />
               </div>
             </Row>
@@ -458,35 +523,69 @@ export default function Register() {
 
           <Field>
             <Label htmlFor="email">Email</Label>
-            <Input
+            <RestrictedInput
               id="email"
-              type="email"
-              autoComplete="email"
+              name="email"
+              ariaLabel="Email"
               placeholder="Enter your email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
+              onChange={setEmail}
+              inputMode="email"
+              autoComplete="email"
+              validate={validateEmail}
+              showCounter={false}
+              showValidity
             />
           </Field>
 
           <Field>
             <Label htmlFor="password">Password</Label>
-            <Input
+            <RestrictedInput
               id="password"
-              type="password"
-              autoComplete="new-password"
+              name="password"
+              ariaLabel="Password"
               placeholder="Enter your password"
+              type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
+              onChange={setPassword}
+              autoComplete="new-password"
+              validate={validatePwStrong}
+              showCounter={false}
+              showValidity
+            />
+          </Field>
+
+          <Field>
+            <Label htmlFor="confirmPassword">Repeat password</Label>
+            <RestrictedInput
+              id="confirmPassword"
+              name="confirm_password"
+              ariaLabel="Repeat password"
+              placeholder="Repeat your password"
+              type="password"
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+              autoComplete="new-password"
+              validate={(s) => validatePwMatch(s, password)}
+              showCounter={false}
+              showValidity
             />
           </Field>
 
           {errorMsg && <ErrorMsg>{errorMsg}</ErrorMsg>}
           {infoMsg && <InfoMsg>{infoMsg}</InfoMsg>}
 
-          <SubmitBtn type="submit" disabled={submitting}>
+          <SubmitBtn
+            type="submit"
+            disabled={
+              submitting ||
+              !!validateName(fullName) ||
+              !!validateEmail(email) ||
+              !!validatePwStrong(password) ||
+              !!validatePwMatch(confirmPassword, password) ||
+              !!validatePhoneByCountry(phone, addCountry)
+            }
+          >
             {submitting ? "Creating..." : "Create account"}
           </SubmitBtn>
         </Form>

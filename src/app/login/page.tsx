@@ -4,6 +4,19 @@ import { theme } from "../../../styles/theme";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browserClient";
 import { useState } from "react";
+import { RestrictedInput } from "@/components/RestrictedInput/page";
+
+// quick, pragmatic validators
+const validateEmail = (s: string) => {
+  if (!s) return null;
+  // simple RFC-ish check; adjust to taste
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) ? null : "Enter a valid email.";
+};
+
+const validatePw = (s: string) => {
+  if (!s) return null;
+  return s.length >= 8 ? null : "Password must be at least 8 characters.";
+};
 
 const StyledLoginPage = styled.div`
   background-color: ${theme.colors.background};
@@ -61,12 +74,8 @@ const RowBetween = styled.div`
   align-items: baseline;
 `;
 
-const StyledLoginFormInput = styled.input`
+const StyledLoginFormInput = styled(RestrictedInput)`
   width: 100%;
-  padding: 8px;
-  border-radius: 6px;
-  border: none;
-  background-color: ${theme.colors.inputBackground};
 `;
 
 const StyledLoginFormInputLabel = styled.label`
@@ -218,14 +227,20 @@ export default function Login() {
                 Email
               </StyledLoginFormInputLabel>
             </RowBetween>
+
             <StyledLoginFormInput
               id="email"
-              type="email"
-              autoComplete="email"
+              name="email"
+              ariaLabel="Email"
               placeholder="Enter your email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
+              onChange={setEmail}
+              inputMode="email"
+              autoComplete="email"
+              // use default preset="none"; we only validate
+              validate={validateEmail}
+              showCounter={false}
+              showValidity
             />
           </StyledLoginFormInputSection>
 
@@ -238,14 +253,18 @@ export default function Login() {
 
             <StyledLoginFormInput
               id="password"
-              type="password"
-              autoComplete="current-password"
+              name="password"
+              ariaLabel="Password"
               placeholder="Enter your password"
+              type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
+              onChange={setPassword}
+              autoComplete="current-password"
+              validate={validatePw} // shows hint if too short
+              showCounter={false}
+              showValidity
             />
+
             <StyledTextButton
               type="button"
               onClick={handleForgotPassword}

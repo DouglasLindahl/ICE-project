@@ -405,14 +405,6 @@ export default function Settings() {
           </StyledSettingsPageHeaderReturnButton>
           <StyledSettingsPageHeaderLogo>Settings</StyledSettingsPageHeaderLogo>
         </StyledSettingsPageHeaderLeft>
-        {publicUrl ? (
-          <Helper>
-            Your public page:{" "}
-            <a href={publicUrl} target="_blank">
-              {publicUrl}
-            </a>
-          </Helper>
-        ) : null}
       </StyledSettingsPageHeader>
 
       <StyledSettingsPageSettings>
@@ -488,8 +480,7 @@ export default function Settings() {
                     placeholder="Notes, preferences, etc."
                     name="additional_information"
                     preset="none"
-                    // choose if you want to block emojis here:
-                    // blockEmoji
+                    multiline
                     maxLength={280}
                     ariaLabel="Additional information"
                     showCounter
