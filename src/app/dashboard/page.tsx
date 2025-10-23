@@ -21,6 +21,7 @@ import {
   getOrCreatePublicToken,
   buildPublicUrl,
   updateAdditionalInfo as upsertAdditionalInfo,
+  Contact,
 } from "../utils";
 
 /* ============================
@@ -139,17 +140,6 @@ function toE164WithCountry(
       "Enter a valid number. Example: +4612345678, 004612345678, or local digits with correct country selected.",
   };
 }
-
-/* ============================
-   Types & styled components
-   ============================ */
-type Contact = {
-  id: string;
-  name: string;
-  relationship: string | null;
-  phone_e164: string;
-  priority: number | null;
-};
 
 const LeftColumn = styled.div`
   display: flex;
@@ -460,10 +450,24 @@ const StyledDashboardContactsSectionContactCardButtonSection = styled.div`
   }
 `;
 
+// tighten the name line
 const StyledDashboardContactsSectionContactCardName = styled.p`
   font-size: 16px;
   font-weight: bold;
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px; /* space between text and star */
+  line-height: 1.2;
+`;
+
+// compact star
+const PriorityStar = styled.span`
+  display: inline-block;
+  font-size: 14px;
+  line-height: 1; /* prevents extra vertical space */
+  color: ${theme.colors.accent};
+  transform: translateY(-1px); /* tiny nudge for optical alignment */
 `;
 
 const StyledDashboardContactsSectionContactCardNumber = styled.p`
@@ -739,6 +743,44 @@ const DangerBtn = styled.button`
   color: white;
   font-size: 14px;
 `;
+const ToggleRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+`;
+
+const Toggle = styled.input.attrs({ type: "checkbox" })`
+  width: 42px;
+  height: 24px;
+  appearance: none;
+  background: ${theme.colors.inputBackground};
+  border-radius: 999px;
+  position: relative;
+  outline: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+
+  &:checked {
+    background: ${theme.colors.accent};
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    background: ${theme.colors.card};
+    border-radius: 50%;
+    transition: transform 0.2s ease;
+    transform: translateX(0);
+  }
+
+  &:checked::after {
+    transform: translateX(18px);
+  }
+`;
 
 /* ============================
    Component
@@ -763,6 +805,7 @@ export default function DashboardPage() {
   const [phone, setPhone] = useState("");
   const [addCountry, setAddCountry] = useState<Country>(COUNTRIES[0]); // default US (change if you prefer)
   const [submitting, setSubmitting] = useState(false);
+  const [addPriority, setAddPriority] = useState(false);
 
   // Edit Contact modal state
   const [showEdit, setShowEdit] = useState(false);
@@ -771,7 +814,7 @@ export default function DashboardPage() {
   const [editRelationship, setEditRelationship] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editCountry, setEditCountry] = useState<Country>(COUNTRIES[0]);
-
+  const [editPriority, setEditPriority] = useState(false);
   // Delete Contact modal state
   const [showDelete, setShowDelete] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
@@ -855,6 +898,7 @@ export default function DashboardPage() {
       const rows = await loadContacts(supa);
       if (!mounted) return;
       setContacts(rows);
+      console.log(rows);
 
       // Public URL (QR)
       const token = await getOrCreatePublicToken(supa, user.id, generateToken);
@@ -889,15 +933,17 @@ export default function DashboardPage() {
         return;
       }
       const phone_e164 = parsed.e164;
-      const priority = (contacts?.length ?? 0) + 1;
+      const position = (contacts?.length ?? 0) + 1;
 
       await insertContact(supa, {
         user_id: userId,
         name,
         relationship: relationship || null,
         phone_e164,
-        priority,
+        position,
+        priority: addPriority, // NEW
       });
+
       setContacts(await loadContacts(supa));
       setShowAdd(false);
       setName("");
@@ -940,6 +986,7 @@ export default function DashboardPage() {
     setEditName(c.name);
     setEditRelationship(c.relationship ?? "");
     setEditPhone(c.phone_e164);
+    setEditPriority(!!c.priority); // NEW
 
     const guess = detectCountryFromE164(c.phone_e164);
     setEditCountry(guess ?? COUNTRIES[0]);
@@ -962,6 +1009,7 @@ export default function DashboardPage() {
         name: editName,
         relationship: editRelationship || null,
         phone_e164,
+        priority: editPriority, // NEW
       });
 
       setContacts((cs) =>
@@ -972,10 +1020,12 @@ export default function DashboardPage() {
                 name: editName,
                 relationship: editRelationship || null,
                 phone_e164,
+                priority: editPriority, // NEW
               }
             : c
         )
       );
+
       setShowEdit(false);
       setEditId(null);
     } catch (err) {
@@ -1154,7 +1204,11 @@ export default function DashboardPage() {
                   <StyledDashboardContactsSectionContactCardInfoSection>
                     <StyledDashboardContactsSectionContactCardName>
                       {c.name} ({c.relationship || "Contact"})
+                      {c.priority && (
+                        <PriorityStar aria-label="Priority">★</PriorityStar>
+                      )}
                     </StyledDashboardContactsSectionContactCardName>
+
                     <StyledDashboardContactsSectionContactCardNumber>
                       {c.phone_e164}
                     </StyledDashboardContactsSectionContactCardNumber>
@@ -1378,6 +1432,14 @@ export default function DashboardPage() {
                   />
                 </div>
               </Row>
+              <ToggleRow>
+                <Toggle
+                  checked={addPriority}
+                  onChange={(e) => setAddPriority(e.target.checked)}
+                  aria-label="Make this a priority contact"
+                />
+                <span>Mark as priority contact</span>
+              </ToggleRow>
 
               <Submit type="submit" disabled={submitting}>
                 {submitting ? "Adding…" : "Add Contact"}
@@ -1483,6 +1545,14 @@ export default function DashboardPage() {
                   />
                 </div>
               </Row>
+              <ToggleRow>
+                <Toggle
+                  checked={editPriority}
+                  onChange={(e) => setEditPriority(e.target.checked)}
+                  aria-label="Make this a priority contact"
+                />
+                <span>Mark as priority contact</span>
+              </ToggleRow>
 
               <Submit type="submit">Save Changes</Submit>
             </Form>

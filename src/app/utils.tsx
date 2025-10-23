@@ -9,7 +9,8 @@ export type Contact = {
   name: string;
   relationship: string | null;
   phone_e164: string;
-  priority: number | null;
+  priority: boolean;
+  position: number | null;
 };
 
 export type ProfileRow = {
@@ -63,15 +64,23 @@ export async function updateAdditionalInfo(
 }
 
 // ----- Contacts -----
+/* =========================
+   Fetch
+   ========================= */
 export async function fetchContacts(supa: SupabaseClient): Promise<Contact[]> {
   const { data, error } = await supa
     .from("contacts")
-    .select("id,name,relationship,phone_e164,priority")
-    .order("priority", { ascending: true });
+    .select("id,name,relationship,phone_e164,position,priority")
+    // You probably want to order by `position` now instead of boolean `priority`
+    .order("position", { ascending: true });
+
   if (error) throw error;
   return (data as Contact[]) ?? [];
 }
 
+/* =========================
+   Insert
+   ========================= */
 export async function insertContact(
   supa: SupabaseClient,
   params: {
@@ -79,17 +88,26 @@ export async function insertContact(
     name: string;
     relationship: string | null;
     phone_e164: string;
-    priority: number | null;
+    position: number | null;
+    priority?: boolean; // optional, default handled by DB
   }
 ) {
   const { error } = await supa.from("contacts").insert([params]);
   if (error) throw error;
 }
 
+/* =========================
+   Update
+   ========================= */
 export async function updateContact(
   supa: SupabaseClient,
   id: string,
-  patch: Partial<Pick<Contact, "name" | "relationship" | "phone_e164">>
+  patch: Partial<
+    Pick<
+      Contact,
+      "name" | "relationship" | "phone_e164" | "position" | "priority"
+    >
+  >
 ) {
   const { error } = await supa.from("contacts").update(patch).eq("id", id);
   if (error) throw error;
