@@ -7,7 +7,13 @@ import { createClient } from "@/lib/supabase/browserClient";
 import { RestrictedInput } from "@/components/RestrictedInput/page";
 import { LoadingScreen } from "@/components/LoadingScreen/page";
 import { NoticeDialog } from "@/components/NoticeDialog/page";
+import type { User } from "@supabase/supabase-js";
 
+export function hasNoIdentities(user: User | null): boolean {
+  return (
+    !!user && Array.isArray(user.identities) && user.identities.length === 0
+  );
+}
 // validators
 const validateEmail = (s: string) => {
   if (!s) return null;
@@ -396,25 +402,21 @@ export default function Register() {
       }
 
       // Guard: Supabase sometimes returns a user even if an existing unconfirmed account exists
-      if (data?.user) {
-        const identities = (data.user as any)?.identities;
-        if (Array.isArray(identities) && identities.length === 0) {
-          setNotice({
-            open: true,
-            type: "error",
-            title: "Email already in use",
-            message:
-              "That email is already registered. Try signing in instead.",
-            actions: [
-              {
-                label: "Go to Sign In",
-                onClick: () => router.push("/login"),
-                variant: "primary",
-              },
-            ],
-          });
-          return;
-        }
+      if (hasNoIdentities(data.user)) {
+        setNotice({
+          open: true,
+          type: "error",
+          title: "Email already in use",
+          message: "That email is already registered. Try signing in instead.",
+          actions: [
+            {
+              label: "Go to Sign In",
+              onClick: () => router.push("/login"),
+              variant: "primary",
+            },
+          ],
+        });
+        return;
       }
 
       const { data: sessionCheck } = await supa.auth.getSession();

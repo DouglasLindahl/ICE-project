@@ -22,6 +22,7 @@ import { profile } from "console";
 import { theme } from "../../../styles/theme";
 import { CustomButton } from "@/components/CustomButton/page";
 import { LoadingScreen } from "@/components/LoadingScreen/page";
+import { AuthError } from "@supabase/supabase-js";
 
 // Types
 type Contact = {
@@ -350,10 +351,10 @@ export default function Settings() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmNewPassword("");
-    } catch (err: any) {
+    } catch (err: unknown) {
       setBanner({
         type: "error",
-        msg: err?.message ?? "Could not change password.",
+        msg: getErrorMessage(err),
       });
     }
   };
@@ -396,7 +397,9 @@ export default function Settings() {
           >
             Back to Dashboard
           </CustomButton>
-          <StyledSettingsPageHeaderLogo>Settings</StyledSettingsPageHeaderLogo>
+          <StyledSettingsPageHeaderLogo>
+            Profile Settings
+          </StyledSettingsPageHeaderLogo>
         </StyledSettingsPageHeaderLeft>
       </StyledSettingsPageHeader>
 
@@ -661,4 +664,7 @@ export default function Settings() {
       </StyledSettingsPageSettings>
     </StyledSettingsPage>
   );
+}
+function getErrorMessage(err: unknown): string {
+  throw new Error("Function not implemented.");
 }

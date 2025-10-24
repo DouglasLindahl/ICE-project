@@ -24,6 +24,7 @@ import {
   Contact,
 } from "../utils";
 import { LoadingScreen } from "@/components/LoadingScreen/page";
+import { CustomButton } from "@/components/CustomButton/page";
 
 /* ============================
    Country data & phone helpers
@@ -1596,12 +1597,19 @@ export default function DashboardPage() {
             </DangerBar>
 
             <ModalActionsRow>
-              <SecondaryBtn onClick={() => setShowDelete(false)}>
+              <CustomButton
+                variant="outline"
+                onClick={() => setShowDelete(false)}
+              >
                 Cancel
-              </SecondaryBtn>
-              <DangerBtn onClick={confirmDelete} disabled={deleting}>
+              </CustomButton>
+              <CustomButton
+                variant="danger"
+                onClick={confirmDelete}
+                disabled={deleting}
+              >
                 {deleting ? "Deleting…" : "Delete"}
-              </DangerBtn>
+              </CustomButton>
             </ModalActionsRow>
           </Modal>
         </Backdrop>

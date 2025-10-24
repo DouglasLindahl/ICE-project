@@ -192,10 +192,10 @@ export default function QRPublicPage({
         });
         if (error) {
           console.error("[RPC get_contacts_by_token]", {
-            status,
+            code: error.code,
             message: error.message,
-            details: (error as any).details,
-            hint: (error as any).hint,
+            details: error.details,
+            hint: error.hint,
           });
           setContacts(null);
           setNotFound(true);

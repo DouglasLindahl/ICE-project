@@ -1,7 +1,7 @@
 // utils/supabase-data-utils.ts
 // Thin, typed helpers so components don't deal with query strings
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { AuthError, SupabaseClient } from "@supabase/supabase-js";
 
 // ----- Types you already use -----
 export type Contact = {
@@ -19,7 +19,12 @@ export type ProfileRow = {
   phone_number?: string | null;
   additional_information?: string | null;
 };
-
+function getErrorMessage(err: unknown): string {
+  if ((err as AuthError)?.message) return (err as AuthError).message;
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === "string") return err;
+  return "Could not change password.";
+}
 // ----- Session / Auth -----
 export async function getSessionUser(supa: SupabaseClient) {
   const { data } = await supa.auth.getSession();
