@@ -19,6 +19,9 @@ import {
   validateName,
 } from "@/components/RestrictedInput/page";
 import { profile } from "console";
+import { theme } from "../../../styles/theme";
+import { CustomButton } from "@/components/CustomButton/page";
+import { LoadingScreen } from "@/components/LoadingScreen/page";
 
 // Types
 type Contact = {
@@ -105,8 +108,8 @@ const SidebarButton = styled.button<{ $active?: boolean }>`
   ${(p) =>
     p.$active
       ? css`
-          background: #f5f7ff;
-          border-color: #cfd8ff;
+          background: #ffecbaff;
+          border-color: ${theme.colors.accent};
           font-weight: 600;
         `
       : css`
@@ -233,20 +236,12 @@ export default function Settings() {
   const [additionalInfo, setAdditionalInfo] = useState("");
   const [originalAdditionalInfo, setOriginalAdditionalInfo] = useState("");
 
-  // Notifications
-  const [emailUpdates, setEmailUpdates] = useState<boolean>(true);
-  const [marketingEmails, setMarketingEmails] = useState<boolean>(false);
-  const [qrCodeScans, setQrCodeScans] = useState<boolean>(true);
-
   // Privacy (password)
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
 
-  // Misc (you already had these)
-  const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
-  const [publicUrl, setPublicUrl] = useState<string | null>(null);
 
   // UI state
   const [tab, setTab] = useState<TabKey>("profile");
@@ -279,17 +274,6 @@ export default function Settings() {
       setOriginalPhone(profile?.phone_number ?? "");
       setAdditionalInfo(profile?.additional_information ?? "");
       setOriginalAdditionalInfo(profile?.additional_information ?? "");
-
-      // Contacts
-      const rows = await fetchContacts(supa);
-      if (!mounted) return;
-      setContacts(rows);
-
-      // Public URL (QR)
-      const token = await getOrCreatePublicToken(supa, user.id, generateToken);
-      if (!mounted) return;
-      const origin = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
-      setPublicUrl(buildPublicUrl(token, origin));
 
       // auth listener
       const { data: sub } = supa.auth.onAuthStateChange((_e, session) => {
@@ -393,16 +377,25 @@ export default function Settings() {
       ] as { key: TabKey; label: string }[],
     []
   );
+  if (loading) {
+    return (
+      <LoadingScreen
+        message="Loading settings…"
+        subtext="Fetching your Information"
+      />
+    );
+  }
 
   return (
     <StyledSettingsPage>
       <StyledSettingsPageHeader>
         <StyledSettingsPageHeaderLeft>
-          <StyledSettingsPageHeaderReturnButton
+          <CustomButton
+            variant="ghost"
             onClick={() => router.push("/dashboard")}
           >
-            ← Back to Dashboard
-          </StyledSettingsPageHeaderReturnButton>
+            Back to Dashboard
+          </CustomButton>
           <StyledSettingsPageHeaderLogo>Settings</StyledSettingsPageHeaderLogo>
         </StyledSettingsPageHeaderLeft>
       </StyledSettingsPageHeader>
@@ -490,18 +483,22 @@ export default function Settings() {
                 </Field>
 
                 <Row>
-                  <Button type="submit" disabled={loading || !userId}>
+                  <CustomButton
+                    variant="primary"
+                    type="submit"
+                    disabled={loading || !userId}
+                  >
                     Save changes
-                  </Button>
-                  <Button
+                  </CustomButton>
+                  <CustomButton
                     type="button"
-                    $variant="ghost"
+                    variant="outline"
                     onClick={() => {
                       resetProfile();
                     }}
                   >
                     Reset
-                  </Button>
+                  </CustomButton>
                 </Row>
               </Form>
             </div>
@@ -561,8 +558,9 @@ export default function Settings() {
                 </Field>
 
                 <Row>
-                  <Button
+                  <CustomButton
                     type="submit"
+                    variant="primary"
                     disabled={
                       !currentPassword ||
                       !newPassword ||
@@ -572,7 +570,7 @@ export default function Settings() {
                     }
                   >
                     Change password
-                  </Button>
+                  </CustomButton>
                 </Row>
                 <Helper>
                   For security, we re-authenticate using your current password
@@ -629,9 +627,13 @@ export default function Settings() {
                   </Helper>
                 </Field>
                 <Row>
-                  <Button type="button" onClick={exportData}>
+                  <CustomButton
+                    variant="primary"
+                    type="button"
+                    onClick={exportData}
+                  >
                     Export
-                  </Button>
+                  </CustomButton>
                 </Row>
 
                 <Field>
@@ -643,13 +645,13 @@ export default function Settings() {
                     data. This action is irreversible.
                   </Helper>
                   <Row style={{ marginTop: 12 }}>
-                    <Button
+                    <CustomButton
                       type="button"
-                      $variant="danger"
+                      variant="danger"
                       onClick={deleteAccount}
                     >
                       Delete account
-                    </Button>
+                    </CustomButton>
                   </Row>
                 </DangerBox>
               </Form>

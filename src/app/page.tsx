@@ -4,6 +4,7 @@ import styles from "./page.module.css";
 import styled from "styled-components";
 import { theme } from "../../styles/theme";
 import { useRouter } from "next/navigation";
+
 // --- Responsive helpers
 const breakpoints = {
   lg: "1024px",
@@ -327,6 +328,7 @@ const StyledFooter = styled.footer`
 
 export default function Home() {
   const router = useRouter();
+
   return (
     <StyledPage className={styles.page}>
       <StyledHeader>

@@ -23,6 +23,7 @@ import {
   updateAdditionalInfo as upsertAdditionalInfo,
   Contact,
 } from "../utils";
+import { LoadingScreen } from "@/components/LoadingScreen/page";
 
 /* ============================
    Country data & phone helpers
@@ -1084,9 +1085,10 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <main style={{ maxWidth: 720, margin: "32px auto", padding: 16 }}>
-        Loading…
-      </main>
+      <LoadingScreen
+        message="Loading Dashboard..."
+        subtext="Fetching Your Information"
+      />
     );
   }
 

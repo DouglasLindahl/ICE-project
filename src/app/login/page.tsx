@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browserClient";
 import { useState } from "react";
 import { RestrictedInput } from "@/components/RestrictedInput/page";
+import { LoadingScreen } from "@/components/LoadingScreen/page";
 
 // quick, pragmatic validators
 const validateEmail = (s: string) => {
   if (!s) return null;
-  // simple RFC-ish check; adjust to taste
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) ? null : "Enter a valid email.";
 };
 
@@ -155,7 +155,14 @@ export default function Login() {
   const supa = createClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+
+  // Overlay loader control
+  const [overlay, setOverlay] = useState<{
+    visible: boolean;
+    message: string;
+    subtext?: string;
+  }>({ visible: false, message: "" });
+
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
 
@@ -163,7 +170,11 @@ export default function Login() {
     e.preventDefault();
     setErrorMsg(null);
     setInfoMsg(null);
-    setSubmitting(true);
+    setOverlay({
+      visible: true,
+      message: "Signing you in…",
+      subtext: "Securing your session",
+    });
     try {
       const { error } = await supa.auth.signInWithPassword({ email, password });
       if (error) {
@@ -178,7 +189,7 @@ export default function Login() {
         setErrorMsg("Something went wrong. Please try again.");
       }
     } finally {
-      setSubmitting(false);
+      setOverlay({ visible: false, message: "" });
     }
   }
 
@@ -192,6 +203,12 @@ export default function Login() {
       );
       return;
     }
+
+    setOverlay({
+      visible: true,
+      message: "Sending reset email…",
+      subtext: "Check your inbox for the link",
+    });
 
     try {
       const { error } = await supa.auth.resetPasswordForEmail(email, {
@@ -208,95 +225,106 @@ export default function Login() {
       } else {
         setErrorMsg("Could not send reset email. Please try again.");
       }
+    } finally {
+      setOverlay({ visible: false, message: "" });
     }
   }
 
   return (
-    <StyledLoginPage>
-      <StyledLoginForm>
-        <StyledLoginFormLogo>Beacon</StyledLoginFormLogo>
-        <StyledLoginFormHeader>Welcome back</StyledLoginFormHeader>
-        <StyledLoginFormSubHeader>
-          Sign in to access your emergency contacts
-        </StyledLoginFormSubHeader>
+    <>
+      {/* Full-screen overlay while busy */}
+      {overlay.visible && (
+        <LoadingScreen message={overlay.message} subtext={overlay.subtext} />
+      )}
 
-        <StyledForm onSubmit={handleSubmit}>
-          <StyledLoginFormInputSection>
-            <RowBetween>
-              <StyledLoginFormInputLabel htmlFor="email">
-                Email
-              </StyledLoginFormInputLabel>
-            </RowBetween>
+      <StyledLoginPage aria-busy={overlay.visible}>
+        <StyledLoginForm>
+          <StyledLoginFormLogo>Beacon</StyledLoginFormLogo>
+          <StyledLoginFormHeader>Welcome back</StyledLoginFormHeader>
+          <StyledLoginFormSubHeader>
+            Sign in to access your emergency contacts
+          </StyledLoginFormSubHeader>
 
-            <StyledLoginFormInput
-              id="email"
-              name="email"
-              ariaLabel="Email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={setEmail}
-              inputMode="email"
-              autoComplete="email"
-              // use default preset="none"; we only validate
-              validate={validateEmail}
-              showCounter={false}
-              showValidity
-            />
-          </StyledLoginFormInputSection>
+          <StyledForm onSubmit={handleSubmit}>
+            <StyledLoginFormInputSection>
+              <RowBetween>
+                <StyledLoginFormInputLabel htmlFor="email">
+                  Email
+                </StyledLoginFormInputLabel>
+              </RowBetween>
 
-          <StyledLoginFormInputSection>
-            <RowBetween>
-              <StyledLoginFormInputLabel htmlFor="password">
-                Password
-              </StyledLoginFormInputLabel>
-            </RowBetween>
+              <StyledLoginFormInput
+                id="email"
+                name="email"
+                ariaLabel="Email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={setEmail}
+                inputMode="email"
+                autoComplete="email"
+                validate={validateEmail}
+                showCounter={false}
+                showValidity
+              />
+            </StyledLoginFormInputSection>
 
-            <StyledLoginFormInput
-              id="password"
-              name="password"
-              ariaLabel="Password"
-              placeholder="Enter your password"
-              type="password"
-              value={password}
-              onChange={setPassword}
-              autoComplete="current-password"
-              validate={validatePw} // shows hint if too short
-              showCounter={false}
-              showValidity
-            />
+            <StyledLoginFormInputSection>
+              <RowBetween>
+                <StyledLoginFormInputLabel htmlFor="password">
+                  Password
+                </StyledLoginFormInputLabel>
+              </RowBetween>
 
-            <StyledTextButton
-              type="button"
-              onClick={handleForgotPassword}
-              aria-label="Reset your password"
+              <StyledLoginFormInput
+                id="password"
+                name="password"
+                ariaLabel="Password"
+                placeholder="Enter your password"
+                type="password"
+                value={password}
+                onChange={setPassword}
+                autoComplete="current-password"
+                validate={validatePw}
+                showCounter={false}
+                showValidity
+              />
+
+              <StyledTextButton
+                type="button"
+                onClick={handleForgotPassword}
+                aria-label="Reset your password"
+              >
+                Forgot password?
+              </StyledTextButton>
+            </StyledLoginFormInputSection>
+
+            {errorMsg && <StyledError>{errorMsg}</StyledError>}
+            {infoMsg && <StyledInfo>{infoMsg}</StyledInfo>}
+
+            <StyledLoginFormSubmitButton
+              type="submit"
+              disabled={overlay.visible}
             >
-              Forgot password?
-            </StyledTextButton>
-          </StyledLoginFormInputSection>
+              {overlay.visible ? "Signing in..." : "Sign in"}
+            </StyledLoginFormSubmitButton>
+          </StyledForm>
 
-          {errorMsg && <StyledError>{errorMsg}</StyledError>}
-          {infoMsg && <StyledInfo>{infoMsg}</StyledInfo>}
+          <StyledLoginFormAlreadyHaveAnAccountButton
+            onClick={() => router.push("/register")}
+            type="button"
+            aria-label="Go to sign up"
+          >
+            Don&apos;t have an account? Sign up
+          </StyledLoginFormAlreadyHaveAnAccountButton>
 
-          <StyledLoginFormSubmitButton type="submit" disabled={submitting}>
-            {submitting ? "Signing in..." : "Sign in"}
-          </StyledLoginFormSubmitButton>
-        </StyledForm>
-
-        <StyledLoginFormAlreadyHaveAnAccountButton
-          onClick={() => router.push("/register")}
-          type="button"
-          aria-label="Go to sign up"
-        >
-          Don&apos;t have an account? Sign up
-        </StyledLoginFormAlreadyHaveAnAccountButton>
-
-        <StyledLoginFormHomeButton
-          onClick={() => router.push("/")}
-          type="button"
-        >
-          Back to home
-        </StyledLoginFormHomeButton>
-      </StyledLoginForm>
-    </StyledLoginPage>
+          <StyledLoginFormHomeButton
+            onClick={() => router.push("/")}
+            type="button"
+          >
+            Back to home
+          </StyledLoginFormHomeButton>
+        </StyledLoginForm>
+      </StyledLoginPage>
+    </>
   );
 }
