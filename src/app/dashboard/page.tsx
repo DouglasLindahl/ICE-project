@@ -1154,9 +1154,8 @@ export default function DashboardPage() {
             </MobileMenuItem>
             <MobileMenuItem
               role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                window.alert("Take user to settings");
+              onClick={async () => {
+                router.replace("/settings");
               }}
             >
               <img src="setting.png" alt="" />

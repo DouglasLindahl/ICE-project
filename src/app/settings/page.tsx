@@ -2,150 +2,178 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browserClient";
-import { generateToken } from "@/utils/token";
 import styled, { css } from "styled-components";
-import {
-  buildPublicUrl,
-  fetchContacts,
-  fetchProfile,
-  getOrCreatePublicToken,
-  getSessionUser,
-  updateAdditionalInfo,
-  upsertProfile,
-} from "../utils";
+import { fetchProfile, getSessionUser, upsertProfile } from "../utils";
 import {
   RestrictedInput,
   validateE164,
   validateName,
 } from "@/components/RestrictedInput/page";
-import { profile } from "console";
 import { theme } from "../../../styles/theme";
 import { CustomButton } from "@/components/CustomButton/page";
 import { LoadingScreen } from "@/components/LoadingScreen/page";
-import { AuthError } from "@supabase/supabase-js";
 
 // Types
-type Contact = {
-  id: string;
-  name: string;
-  relationship: string | null;
-  phone_e164: string;
-  priority: number | null;
-};
 
-// Tabs
 type TabKey = "profile" | "privacy" | "notifications" | "account";
+
+// Breakpoints
+const BP = {
+  md: "768px",
+  sm: "480px",
+};
 
 // Styled Components
 const StyledSettingsPage = styled.div`
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  min-height: 100dvh;
   display: flex;
   justify-content: center;
   align-items: flex-start;
   flex-direction: column;
+  background: #fff;
 `;
 
-const StyledSettingsPageHeader = styled.div`
-  width: 100%;
+const StyledSettingsPageHeader = styled.header`
+  position: sticky;
   top: 0;
-  left: 0;
+  z-index: 10;
+  width: 100%;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
-  padding: 24px 48px;
-  gap: 16px;
+  padding: 16px 16px;
+  gap: 12px;
   border-bottom: 1px solid #eee;
+  background: #ffffffcc;
+  backdrop-filter: blur(6px);
+
+  @media (min-width: ${BP.md}) {
+    padding: 20px 24px;
+  }
 `;
 
 const StyledSettingsPageHeaderLeft = styled.div`
   display: flex;
   align-items: center;
-  gap: 16px;
-`;
-
-const StyledSettingsPageHeaderReturnButton = styled.button`
-  background: none;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 14px;
-  cursor: pointer;
-`;
-
-const StyledSettingsPageHeaderLogo = styled.div`
-  font-size: 18px;
-  font-weight: 700;
+  gap: 12px;
 `;
 
 const StyledSettingsPageSettings = styled.div`
   width: 100%;
-  height: calc(100vh - 90px);
-  display: grid;
-  grid-template-columns: 280px 1fr;
+  min-height: calc(100dvh - 64px);
+
+  @media (min-width: ${BP.md}) {
+    display: grid;
+    grid-template-columns: 280px 1fr; /* Desktop: sidebar + content */
+  }
 `;
 
-const StyledSidebar = styled.div`
-  border-right: 1px solid #eee;
-  padding: 24px;
+// Sidebar transforms to a horizontal, scrollable tab bar on mobile
+const StyledSidebar = styled.nav`
+  border-bottom: 1px solid #eee;
+  padding: 16px 16px;
+  background: #fff;
+  position: sticky;
+  top: 64px;
+  z-index: 9;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  @media (min-width: ${BP.md}) {
+    position: static;
+    border-bottom: none;
+    border-right: 1px solid #eee;
+    overflow: visible;
+  }
 `;
 
 const SidebarList = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  justify-content: space-between;
+
+  @media (min-width: ${BP.md}) {
+    flex-direction: column;
+    gap: 12px;
+  }
 `;
 
 const SidebarButton = styled.button<{ $active?: boolean }>`
-  width: 100%;
+  flex: 0 0 auto;
   text-align: left;
   padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
+  border-radius: 999px; /* pill on mobile */
+  border: none;
+  background: none;
   cursor: pointer;
   font-size: 14px;
+  line-height: 1.2;
+  min-height: 44px; /* touch target */
+  white-space: nowrap;
+
   ${(p) =>
     p.$active
       ? css`
-          background: #ffecbaff;
+          background: #ffecba;
           border-color: ${theme.colors.accent};
           font-weight: 600;
         `
       : css`
           &:hover {
-            background: #fafafa;
-            border-color: #eee;
+            background: #f5f5f5;
+            border-color: #e6e6e6;
           }
         `}
+
+  @media (min-width: ${BP.md}) {
+    border-radius: 8px;
+    width: 100%;
+  }
 `;
 
-const Content = styled.div`
-  padding: 32px 48px;
+const Content = styled.main`
+  padding: 16px;
   overflow: auto;
+
+  @media (min-width: ${BP.md}) {
+    padding: 32px 48px;
+  }
 `;
 
 const SectionTitle = styled.h2`
-  margin: 0 0 16px;
+  margin: 0 0 12px;
+  font-size: clamp(18px, 2vw, 22px);
 `;
 
 const Form = styled.form`
   display: grid;
-  gap: 16px;
-  max-width: 560px;
+  gap: 12px;
+  max-width: 100%;
+
+  @media (min-width: ${BP.md}) {
+    gap: 16px;
+    max-width: 560px;
+  }
 `;
 
 const Field = styled.label`
   display: grid;
-  gap: 8px;
+  gap: 6px;
+`;
+
+const InputBase = css`
+  padding: 12px 14px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-size: 16px; /* prevent iOS zoom */
+  line-height: 1.3;
+  width: 100%;
 `;
 
 const Input = styled.input`
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 14px;
+  ${InputBase}
 `;
 
 const CheckboxRow = styled.label`
@@ -158,29 +186,15 @@ const CheckboxRow = styled.label`
 const Row = styled.div`
   display: flex;
   gap: 12px;
-`;
+  flex-wrap: wrap;
 
-const Button = styled.button<{ $variant?: "primary" | "ghost" | "danger" }>`
-  padding: 10px 14px;
-  border-radius: 10px;
-  cursor: pointer;
-  border: 1px solid transparent;
-  ${(p) =>
-    p.$variant === "danger"
-      ? css`
-          background: #ffeaea;
-          border-color: #ffc7c7;
-          color: #a00000;
-        `
-      : p.$variant === "ghost"
-      ? css`
-          background: transparent;
-          border-color: #ddd;
-        `
-      : css`
-          background: #111827;
-          color: white;
-        `}
+  & > * {
+    min-height: 44px; /* touch target */
+  }
+
+  @media (min-width: ${BP.sm}) {
+    flex-wrap: nowrap;
+  }
 `;
 
 const Helper = styled.p`
@@ -192,8 +206,8 @@ const Helper = styled.p`
 const Banner = styled.div<{ $type?: "info" | "success" | "error" }>`
   margin: 8px 0 16px;
   padding: 10px 12px;
-  border-radius: 8px;
-  font-size: 13px;
+  border-radius: 10px;
+  font-size: 14px;
   ${(p) =>
     p.$type === "success"
       ? css`
@@ -217,8 +231,13 @@ const Banner = styled.div<{ $type?: "info" | "success" | "error" }>`
 const DangerBox = styled.div`
   border: 1px dashed #fca5a5;
   border-radius: 12px;
-  padding: 16px;
-  max-width: 560px;
+  padding: 12px;
+  max-width: 100%;
+
+  @media (min-width: ${BP.md}) {
+    padding: 16px;
+    max-width: 560px;
+  }
 `;
 
 export default function Settings() {
@@ -301,11 +320,12 @@ export default function Settings() {
 
     try {
       await upsertProfile(supa, row);
-      console.log("Profile saved!");
+      setBanner({ type: "success", msg: "Profile saved." });
     } catch (err) {
-      console.error("Error saving profile:", err);
+      setBanner({ type: "error", msg: getErrorMessage(err) });
     }
   };
+
   const changePassword = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setBanner(null);
@@ -352,14 +372,10 @@ export default function Settings() {
       setNewPassword("");
       setConfirmNewPassword("");
     } catch (err: unknown) {
-      setBanner({
-        type: "error",
-        msg: getErrorMessage(err),
-      });
+      setBanner({ type: "error", msg: getErrorMessage(err) });
     }
   };
 
-  const saveNotifications = () => {};
   const exportData = () => {};
   const deleteAccount = () => {};
   const resetProfile = () => {
@@ -378,6 +394,7 @@ export default function Settings() {
       ] as { key: TabKey; label: string }[],
     []
   );
+
   if (loading) {
     return (
       <LoadingScreen
@@ -392,25 +409,25 @@ export default function Settings() {
       <StyledSettingsPageHeader>
         <StyledSettingsPageHeaderLeft>
           <CustomButton
+            noPadding
             variant="ghost"
             onClick={() => router.push("/dashboard")}
+            aria-label="Back to Dashboard"
           >
             Back to Dashboard
           </CustomButton>
-          <StyledSettingsPageHeaderLogo>
-            Profile Settings
-          </StyledSettingsPageHeaderLogo>
         </StyledSettingsPageHeaderLeft>
       </StyledSettingsPageHeader>
 
       <StyledSettingsPageSettings>
-        <StyledSidebar>
+        <StyledSidebar aria-label="Settings sections">
           <SidebarList>
             {tabs.map((t) => (
               <SidebarButton
                 key={t.key}
                 $active={tab === t.key}
                 onClick={() => setTab(t.key)}
+                aria-current={tab === t.key ? "page" : undefined}
               >
                 {t.label}
               </SidebarButton>
@@ -496,9 +513,7 @@ export default function Settings() {
                   <CustomButton
                     type="button"
                     variant="outline"
-                    onClick={() => {
-                      resetProfile();
-                    }}
+                    onClick={resetProfile}
                   >
                     Reset
                   </CustomButton>
@@ -586,35 +601,7 @@ export default function Settings() {
           {tab === "notifications" && (
             <div>
               <SectionTitle>Notifications</SectionTitle>
-              {/*  <Form onSubmit={saveNotifications}>
-                <CheckboxRow>
-                  <input
-                    type="checkbox"
-                    checked={emailUpdates}
-                    onChange={(e) => setEmailUpdates(e.target.checked)}
-                  />
-                  <span>Email updates</span>
-                </CheckboxRow>
-                <CheckboxRow>
-                  <input
-                    type="checkbox"
-                    checked={marketingEmails}
-                    onChange={(e) => setMarketingEmails(e.target.checked)}
-                  />
-                  <span>Marketing emails</span>
-                </CheckboxRow>
-                <CheckboxRow>
-                  <input
-                    type="checkbox"
-                    checked={qrCodeScans}
-                    onChange={(e) => setQrCodeScans(e.target.checked)}
-                  />
-                  <span>QR code scans</span>
-                </CheckboxRow>
-                <Row>
-                  <Button type="submit">Save preferences</Button>
-                </Row>
-              </Form>*/}
+              {/* Add your preferences here */}
             </div>
           )}
 
@@ -633,7 +620,7 @@ export default function Settings() {
                   <CustomButton
                     variant="primary"
                     type="button"
-                    onClick={exportData}
+                    onClick={() => {}}
                   >
                     Export
                   </CustomButton>
@@ -651,7 +638,7 @@ export default function Settings() {
                     <CustomButton
                       type="button"
                       variant="danger"
-                      onClick={deleteAccount}
+                      onClick={() => {}}
                     >
                       Delete account
                     </CustomButton>
@@ -665,6 +652,16 @@ export default function Settings() {
     </StyledSettingsPage>
   );
 }
+
 function getErrorMessage(err: unknown): string {
-  throw new Error("Function not implemented.");
+  if (typeof err === "string") return err;
+  if (err && typeof err === "object" && "message" in err) {
+    // @ts-ignore
+    return String(err.message ?? "Unexpected error");
+  }
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return "Unexpected error";
+  }
 }

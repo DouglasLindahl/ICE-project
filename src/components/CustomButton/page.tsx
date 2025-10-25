@@ -15,6 +15,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   fullWidth?: boolean;
   loading?: boolean;
+  noPadding?: boolean; // ✅ new prop
 }
 
 const variantStyles = {
@@ -83,7 +84,8 @@ const StyledButton = styled.button<ButtonProps>`
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 10px 18px;
+  padding: ${({ variant, noPadding }) =>
+    variant === "ghost" && noPadding ? "0" : "10px 18px"}; /* ✅ conditional */
   border-radius: 8px;
   font-size: 15px;
   font-weight: 600;
@@ -106,6 +108,7 @@ export function CustomButton({
   variant = "primary",
   fullWidth,
   loading,
+  noPadding,
   ...rest
 }: ButtonProps) {
   return (
@@ -113,6 +116,7 @@ export function CustomButton({
       variant={variant}
       fullWidth={fullWidth}
       loading={loading}
+      noPadding={noPadding}
       {...rest}
     >
       {loading ? "Loading..." : children}
