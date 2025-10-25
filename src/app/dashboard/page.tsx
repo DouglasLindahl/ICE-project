@@ -1096,7 +1096,7 @@ export default function DashboardPage() {
   return (
     <StyledDashboardPage>
       <StyledDashboardHeader>
-        <StyledDashboardHeaderLogo>Beacon</StyledDashboardHeaderLogo>
+        <StyledDashboardHeaderLogo>Name Here</StyledDashboardHeaderLogo>
 
         {/* Desktop actions (hidden on mobile) */}
         <StyledDashboardHeaderRight>

@@ -334,7 +334,7 @@ export default function Home() {
       <StyledHeader>
         <div>
           <img src="security.png" alt="Shield icon" />
-          <StyledHeaderLogoText>Beacon</StyledHeaderLogoText>
+          <StyledHeaderLogoText>Name Here</StyledHeaderLogoText>
         </div>
         <StyledSignInButton
           onClick={() => {
@@ -445,7 +445,7 @@ export default function Home() {
       <StyledFooter>
         <div>
           <img src="security.png" alt="Shield icon" />
-          <h4>Beacon</h4>
+          <h4>Name here</h4>
         </div>
         <p>Your light in an emergency.</p>
       </StyledFooter>

@@ -483,7 +483,7 @@ export default function Register() {
         )}
 
         <Card>
-          <Logo>Beacon</Logo>
+          <Logo>Name Here</Logo>
           <H1>Set up your safety circle</H1>
           <Sub>Create your emergency contact profile in just a few steps</Sub>
 
