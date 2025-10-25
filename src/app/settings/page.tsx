@@ -656,8 +656,8 @@ export default function Settings() {
 function getErrorMessage(err: unknown): string {
   if (typeof err === "string") return err;
   if (err && typeof err === "object" && "message" in err) {
-    // @ts-expect-error: err.message might not exist on unknown type
-    return String(err.message ?? "Unexpected error");
+    const message = (err as { message?: unknown }).message;
+    return typeof message === "string" ? message : "Unexpected error";
   }
   try {
     return JSON.stringify(err);
