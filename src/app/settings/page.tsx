@@ -656,7 +656,7 @@ export default function Settings() {
 function getErrorMessage(err: unknown): string {
   if (typeof err === "string") return err;
   if (err && typeof err === "object" && "message" in err) {
-    // @ts-ignore
+    // @ts-expect-error: err.message might not exist on unknown type
     return String(err.message ?? "Unexpected error");
   }
   try {
