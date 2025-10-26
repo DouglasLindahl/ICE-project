@@ -41,7 +41,7 @@ const variantStyles = {
   `,
   accent: css`
     background: ${theme.colors.accent || "#ffb703"};
-    color: #fff;
+    color: ${theme.colors.primary || "black"};
     border: 2px solid ${theme.colors.accent || "#ffb703"};
 
     &:hover {

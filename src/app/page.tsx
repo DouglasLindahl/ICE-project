@@ -4,6 +4,7 @@ import styles from "./page.module.css";
 import styled from "styled-components";
 import { theme } from "../../styles/theme";
 import { useRouter } from "next/navigation";
+import { CustomButton } from "@/components/CustomButton/page";
 
 // --- Responsive helpers
 const breakpoints = {
@@ -304,9 +305,11 @@ const StyledFooter = styled.footer`
 
   h4 {
     font-size: clamp(18px, 4.5vw, 24px);
+    color: ${theme.colors.background};
   }
   p {
     font-size: clamp(14px, 3.5vw, 16px);
+    color: ${theme.colors.background};
   }
 
   div {
@@ -336,13 +339,14 @@ export default function Home() {
           <img src="security.png" alt="Shield icon" />
           <StyledHeaderLogoText>Name Here</StyledHeaderLogoText>
         </div>
-        <StyledSignInButton
+        <CustomButton
+          variant="outline"
           onClick={() => {
             router.push("/login");
           }}
         >
           Sign In
-        </StyledSignInButton>
+        </CustomButton>
       </StyledHeader>
 
       <StyledHero>
@@ -353,13 +357,14 @@ export default function Home() {
             device. Generate a QR code for keychains, wristbands, or cards so
             help is always within reach.
           </p>
-          <StyledCTAButton
+          <CustomButton
+            variant="accent"
             onClick={() => {
               router.push("/register");
             }}
           >
             Get Started Free
-          </StyledCTAButton>
+          </CustomButton>
         </StyledHeroInfo>
 
         <StyledHeroImage>
