@@ -539,6 +539,7 @@ export default function Register() {
                   <RestrictedInput
                     id="phone"
                     name="phone"
+                    preset="e164"
                     ariaLabel="Phone Number"
                     placeholder="(123) 456-7890"
                     value={phone}

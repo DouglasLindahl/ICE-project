@@ -25,6 +25,7 @@ import {
 } from "../utils";
 import { LoadingScreen } from "@/components/LoadingScreen/page";
 import { CustomButton } from "@/components/CustomButton/page";
+import { NoticeDialog } from "@/components/NoticeDialog/page";
 
 /* ============================
    Country data & phone helpers
@@ -830,6 +831,17 @@ export default function DashboardPage() {
   // debounce internals
   const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const aiLatestRef = useRef<string>("");
+  const [noticeOpen, setNoticeOpen] = useState(false);
+  const [notice, setNotice] = useState<{
+    type: "success" | "error" | "info";
+    title: string;
+    message: string;
+    actions?: {
+      label: string;
+      onClick: () => void;
+      variant?: "primary" | "ghost";
+    }[];
+  } | null>(null);
 
   const ADDITIONAL_INFO_MAX = 1000;
   // ===== Country-aware phone validation for RestrictedInput =====
@@ -839,7 +851,30 @@ export default function DashboardPage() {
     const p = toE164WithCountry(v, addCountry);
     return p.ok ? null : p.reason;
   };
+  function notify(n: {
+    type?: "success" | "error" | "info";
+    title: string;
+    message: string;
+    actions?: {
+      label: string;
+      onClick: () => void;
+      variant?: "primary" | "ghost";
+    }[];
+  }) {
+    setNotice({
+      type: n.type ?? "info",
+      title: n.title,
+      message: n.message,
+      actions: n.actions,
+    });
+    setNoticeOpen(true);
+  }
 
+  function closeNotice() {
+    setNoticeOpen(false);
+    // (optional) clear payload after close animation
+    setTimeout(() => setNotice(null), 200);
+  }
   // QR state
   const [publicUrl, setPublicUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -930,7 +965,11 @@ export default function DashboardPage() {
     try {
       const parsed = toE164WithCountry(phone, addCountry);
       if (!parsed.ok) {
-        alert(parsed.reason);
+        notify({
+          type: "error",
+          title: "Invalid phone number",
+          message: parsed.reason,
+        });
         setSubmitting(false);
         return;
       }
@@ -953,7 +992,11 @@ export default function DashboardPage() {
       setPhone("");
     } catch (err) {
       console.error(err);
-      alert("Could not add contact. Please check the number and try again.");
+      notify({
+        type: "error",
+        title: "Couldn not add contact",
+        message: "Please check the number and try again.",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -976,7 +1019,11 @@ export default function DashboardPage() {
       setDeleteTarget(null);
     } catch (e) {
       console.error(e);
-      alert("Delete failed. Please try again.");
+      notify({
+        type: "error",
+        title: "Delete failed",
+        message: "Please try again.",
+      });
     } finally {
       setDeleting(false);
     }
@@ -1002,7 +1049,11 @@ export default function DashboardPage() {
     try {
       const parsed = toE164WithCountry(editPhone, editCountry);
       if (!parsed.ok) {
-        alert(parsed.reason);
+        notify({
+          type: "error",
+          title: "Invalid phone number",
+          message: parsed.reason,
+        });
         return;
       }
       const phone_e164 = parsed.e164;
@@ -1032,7 +1083,11 @@ export default function DashboardPage() {
       setEditId(null);
     } catch (err) {
       console.error(err);
-      alert("Update failed. Please check the number and try again.");
+      notify({
+        type: "error",
+        title: "Update failed",
+        message: "Please check the number and try again.",
+      });
     }
   }
   async function writeAdditionalInfoNow(text: string) {
@@ -1044,7 +1099,11 @@ export default function DashboardPage() {
       setAiSavedAt(new Date().toLocaleString());
     } catch (e) {
       console.error("Saving additional information failed:", e);
-      alert("Could not save additional information. Please try again.");
+      notify({
+        type: "error",
+        title: "Couldn’t save",
+        message: "Please try again.",
+      });
     } finally {
       setAiSaving(false);
     }
@@ -1205,7 +1264,7 @@ export default function DashboardPage() {
                   />
                   <StyledDashboardContactsSectionContactCardInfoSection>
                     <StyledDashboardContactsSectionContactCardName>
-                      {c.name} ({c.relationship || "Contact"})
+                      {c.name} {c.relationship ? `(${c.relationship})` : ``}
                       {c.priority && (
                         <PriorityStar aria-label="Priority">★</PriorityStar>
                       )}
@@ -1323,10 +1382,13 @@ export default function DashboardPage() {
                         url: publicUrl,
                       });
                     } catch {}
-                  } else {
-                    await navigator.clipboard.writeText(publicUrl);
-                    alert("Link copied!");
                   }
+                  await navigator.clipboard.writeText(publicUrl);
+                  notify({
+                    type: "success",
+                    title: "Link copied",
+                    message: "Your public emergency link is on the clipboard.",
+                  });
                 }}
               >
                 <img src="/share.png" alt="" width={16} height={16} />
@@ -1419,6 +1481,7 @@ export default function DashboardPage() {
 
                 <div style={{ width: "100%" }}>
                   <RestrictedInput
+                    preset="e164"
                     id="phone"
                     ariaLabel="Phone Number"
                     placeholder="(123) 456-7890 or +1…"
@@ -1530,6 +1593,7 @@ export default function DashboardPage() {
                 <div style={{ width: "100%" }}>
                   <RestrictedInput
                     id="ephone"
+                    preset="e164"
                     ariaLabel="Phone Number"
                     placeholder="(123) 456-7890 or +1…"
                     value={editPhone}
@@ -1612,6 +1676,16 @@ export default function DashboardPage() {
             </ModalActionsRow>
           </Modal>
         </Backdrop>
+      )}
+      {notice && (
+        <NoticeDialog
+          open={noticeOpen}
+          type={notice.type}
+          title={notice.title}
+          message={notice.message}
+          actions={notice.actions}
+          onClose={closeNotice}
+        />
       )}
     </StyledDashboardPage>
   );
