@@ -3,7 +3,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browserClient";
 import styled, { css } from "styled-components";
-import { fetchProfile, getSessionUser, upsertProfile } from "../utils";
+import {
+  fetchProfile,
+  getSessionUser,
+  upsertProfile,
+  validatePwMatch,
+  validatePwStrong,
+} from "../utils";
 import {
   RestrictedInput,
   validateE164,
@@ -239,7 +245,28 @@ const DangerBox = styled.div`
     max-width: 560px;
   }
 `;
+const Checklist = styled.ul`
+  list-style: none;
+  padding: 8px 10px;
+  margin: 0;
+  border: 1px dashed #e5e7eb;
+  border-radius: 10px;
+  background: #fafafa;
+  font-size: 13px;
+`;
 
+const CheckItem = styled.li<{ $ok: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  color: ${({ $ok }) => ($ok ? "#065f46" : "#6b7280")};
+  &::before {
+    content: ${({ $ok }) => ($ok ? "'✓'" : "'•'")};
+    display: inline-block;
+    width: 1em;
+  }
+`;
 export default function Settings() {
   const router = useRouter();
   const supa = createClient();
@@ -330,38 +357,33 @@ export default function Settings() {
     e?.preventDefault();
     setBanner(null);
 
-    if (!email) {
-      setBanner({ type: "error", msg: "No email found in session." });
-      return;
-    }
-
-    if (!currentPassword || !newPassword || !confirmNewPassword) {
-      setBanner({ type: "error", msg: "Please fill out all password fields." });
-      return;
-    }
-
-    if (newPassword !== confirmNewPassword) {
-      setBanner({ type: "error", msg: "New passwords do not match." });
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      setBanner({
+    if (!email)
+      return setBanner({ type: "error", msg: "No email found in session." });
+    if (!currentPassword || !newPassword || !confirmNewPassword)
+      return setBanner({
         type: "error",
-        msg: "Password must be at least 8 characters.",
+        msg: "Please fill out all password fields.",
       });
-      return;
-    }
+
+    const strongErr = validatePwStrong(newPassword);
+    if (strongErr) return setBanner({ type: "error", msg: strongErr });
+
+    const matchErr = validatePwMatch(confirmNewPassword, newPassword);
+    if (matchErr) return setBanner({ type: "error", msg: matchErr });
+
+    if (newPassword === currentPassword)
+      return setBanner({
+        type: "error",
+        msg: "New password must be different from current.",
+      });
 
     try {
-      // 1) Re-authenticate to be safe
       const { error: signInErr } = await supa.auth.signInWithPassword({
         email,
         password: currentPassword,
       });
       if (signInErr) throw signInErr;
 
-      // 2) Update password
       const { error: updateErr } = await supa.auth.updateUser({
         password: newPassword,
       });
@@ -525,13 +547,21 @@ export default function Settings() {
           {tab === "privacy" && (
             <div>
               <SectionTitle>Privacy</SectionTitle>
-              <Form onSubmit={changePassword}>
+              <Form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  changePassword(e);
+                }}
+              >
                 <Field>
                   <span>Current password</span>
                   <RestrictedInput
                     type="password"
                     value={currentPassword}
-                    onChange={setCurrentPassword}
+                    onChange={(v) => {
+                      setCurrentPassword(v);
+                      setBanner(null);
+                    }}
                     name="current_password"
                     autoComplete="current-password"
                     ariaLabel="Current password"
@@ -547,9 +577,9 @@ export default function Settings() {
                     value={newPassword}
                     onChange={setNewPassword}
                     name="new_password"
-                    autoComplete="new-password"
                     ariaLabel="New password"
                     maxLength={128}
+                    validate={validatePwStrong}
                     showValidity
                   />
                 </Field>
@@ -561,16 +591,9 @@ export default function Settings() {
                     value={confirmNewPassword}
                     onChange={setConfirmNewPassword}
                     name="confirm_new_password"
-                    autoComplete="new-password"
                     ariaLabel="Confirm new password"
                     maxLength={128}
-                    validate={(s) =>
-                      !s
-                        ? null
-                        : s !== newPassword
-                        ? "Passwords don't match."
-                        : null
-                    }
+                    validate={(s) => validatePwMatch(s, newPassword)}
                     showValidity
                   />
                 </Field>
@@ -583,13 +606,15 @@ export default function Settings() {
                       !currentPassword ||
                       !newPassword ||
                       !confirmNewPassword ||
-                      newPassword !== confirmNewPassword ||
-                      newPassword.length < 8
+                      !!validatePwStrong(newPassword) ||
+                      !!validatePwMatch(confirmNewPassword, newPassword) ||
+                      newPassword === currentPassword
                     }
                   >
                     Change password
                   </CustomButton>
                 </Row>
+
                 <Helper>
                   For security, we re-authenticate using your current password
                   before applying the change.

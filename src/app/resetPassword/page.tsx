@@ -1,106 +1,225 @@
 "use client";
 
+import styled from "styled-components";
+import { theme } from "../../../styles/theme";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/browserClient";
-import { useRouter } from "next/navigation";
+import { RestrictedInput } from "@/components/RestrictedInput/page";
+import { LoadingScreen } from "@/components/LoadingScreen/page";
+import { NoticeDialog } from "@/components/NoticeDialog/page";
+import { CustomButton } from "@/components/CustomButton/page";
+import { validatePwMatch, validatePwStrong } from "../utils";
 
+/* ============================
+   Styles
+   ============================ */
+const Page = styled.main`
+  max-width: 420px;
+  margin: 64px auto;
+  padding: 16px;
+`;
+
+const Card = styled.section`
+  background: ${theme.colors.card};
+  border: 1px solid ${theme.colors.border};
+  border-radius: 12px;
+  padding: 24px;
+`;
+
+const Title = styled.h1`
+  margin: 0 0 6px;
+  font-weight: 700;
+  font-size: 22px;
+`;
+
+const Sub = styled.p`
+  margin: 0 0 14px;
+  color: #666;
+`;
+
+const Form = styled.form`
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+`;
+
+const Label = styled.label`
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+`;
+
+const Submit = styled.button<{ disabled?: boolean }>`
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 700;
+  cursor: ${({ disabled }) => (disabled ? "not-allowed" : "pointer")};
+  background: ${theme.colors.accent};
+  color: ${theme.colors.text || "#fff"};
+  opacity: ${({ disabled }) => (disabled ? 0.7 : 1)};
+`;
+
+/* ============================
+   Component
+   ============================ */
 export default function ResetPasswordPage() {
   const supa = createClient();
   const router = useRouter();
+
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [infoMsg, setInfoMsg] = useState<string | null>(null);
+
+  // Loader overlay
+  const [overlay, setOverlay] = useState<{
+    visible: boolean;
+    message: string;
+    subtext?: string;
+  }>({
+    visible: false,
+    message: "",
+  });
+
+  // Notice popup
+  const [notice, setNotice] = useState<{
+    open: boolean;
+    type: "success" | "error" | "info";
+    title: string;
+    message: string;
+    actions?: {
+      label: string;
+      onClick: () => void;
+      variant?: "primary" | "ghost";
+    }[];
+  }>({ open: false, type: "info", title: "", message: "" });
 
   async function handleUpdate(e: React.FormEvent) {
     e.preventDefault();
-    setErrorMsg(null);
-    setInfoMsg(null);
 
-    if (password.length < 6) {
-      setErrorMsg("Password must be at least 6 characters.");
-      return;
-    }
-    if (password !== confirm) {
-      setErrorMsg("Passwords do not match.");
+    const strongErr = validatePwStrong(password);
+    const matchErr = validatePwMatch(confirm, password);
+
+    if (strongErr || matchErr) {
+      setNotice({
+        open: true,
+        type: "error",
+        title: "Fix the form",
+        message: strongErr || matchErr || "Please correct the errors above.",
+      });
       return;
     }
 
     setSubmitting(true);
-    const { error } = await supa.auth.updateUser({ password });
-    setSubmitting(false);
+    setOverlay({ visible: true, message: "Updating password…" });
 
-    if (error) {
-      setErrorMsg(error.message);
-      return;
+    try {
+      const { error } = await supa.auth.updateUser({ password });
+      if (error) {
+        setNotice({
+          open: true,
+          type: "error",
+          title: "Update failed",
+          message: error.message,
+        });
+        return;
+      }
+
+      setNotice({
+        open: true,
+        type: "success",
+        title: "Password updated",
+        message: "Your password has been changed successfully.",
+        actions: [
+          {
+            label: "Go to Sign In",
+            variant: "primary",
+            onClick: () => router.push("/login"),
+          },
+        ],
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Something went wrong.";
+      setNotice({
+        open: true,
+        type: "error",
+        title: "Something went wrong",
+        message,
+      });
+    } finally {
+      setSubmitting(false);
+      setOverlay({ visible: false, message: "" });
     }
-    setInfoMsg("Password updated. Redirecting to sign in…");
-    setTimeout(() => router.push("/"), 1200);
   }
 
+  const disabled =
+    submitting ||
+    !!validatePwStrong(password) ||
+    !!validatePwMatch(confirm, password);
+
   return (
-    <main style={{ maxWidth: 420, margin: "64px auto", padding: 16 }}>
-      <h1>Reset your password</h1>
-      <p style={{ color: "#666" }}>Enter a new password for your account.</p>
-      <form
-        onSubmit={handleUpdate}
-        style={{ display: "grid", gap: 12, marginTop: 16 }}
-      >
-        <label>
-          New password
-          <input
-            type="password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            minLength={6}
-            required
-            style={{
-              width: "100%",
-              padding: 8,
-              borderRadius: 6,
-              border: "1px solid #ddd",
-            }}
-          />
-        </label>
-        <label>
-          Confirm password
-          <input
-            type="password"
-            placeholder="••••••••"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            minLength={6}
-            required
-            style={{
-              width: "100%",
-              padding: 8,
-              borderRadius: 6,
-              border: "1px solid #ddd",
-            }}
-          />
-        </label>
-        {errorMsg && (
-          <div style={{ color: "#b00020", fontSize: 12 }}>{errorMsg}</div>
-        )}
-        {infoMsg && (
-          <div style={{ color: "#0a0", fontSize: 12 }}>{infoMsg}</div>
-        )}
-        <button
-          type="submit"
-          disabled={submitting}
-          style={{
-            padding: 10,
-            borderRadius: 8,
-            border: "none",
-            fontWeight: 700,
-            cursor: submitting ? "not-allowed" : "pointer",
-          }}
-        >
-          {submitting ? "Updating…" : "Update password"}
-        </button>
-      </form>
-    </main>
+    <>
+      {overlay.visible && (
+        <LoadingScreen message={overlay.message} subtext={overlay.subtext} />
+      )}
+
+      {notice.open && (
+        <NoticeDialog
+          open={notice.open}
+          type={notice.type}
+          title={notice.title}
+          message={notice.message}
+          actions={notice.actions}
+          onClose={() => setNotice((n) => ({ ...n, open: false }))}
+        />
+      )}
+
+      <Page aria-busy={overlay.visible}>
+        <Card>
+          <Title>Reset your password</Title>
+          <Sub>Enter a new password for your account.</Sub>
+
+          <Form onSubmit={handleUpdate}>
+            <Label htmlFor="new_pw">
+              New password
+              <RestrictedInput
+                id="new_pw"
+                type="password"
+                placeholder="New Password"
+                value={password}
+                onChange={setPassword}
+                validate={validatePwStrong}
+                showValidity
+                maxLength={128}
+                autoComplete="new-password"
+                disabled={submitting || overlay.visible}
+              />
+            </Label>
+
+            <Label htmlFor="confirm_pw">
+              Repeat password
+              <RestrictedInput
+                id="Confirm_pw"
+                type="password"
+                placeholder="Repeat Password"
+                value={confirm}
+                onChange={setConfirm}
+                validate={(s) => validatePwMatch(s, password)}
+                showValidity
+                maxLength={128}
+                autoComplete="new-password"
+                disabled={submitting || overlay.visible}
+              />
+            </Label>
+
+            <CustomButton variant="accent" type="submit" disabled={disabled}>
+              {submitting ? "Updating…" : "Update password"}
+            </CustomButton>
+          </Form>
+        </Card>
+      </Page>
+    </>
   );
 }

@@ -1161,7 +1161,11 @@ export default function DashboardPage() {
         <StyledDashboardHeaderRight>
           <StyledDashboardHeaderButton
             onClick={async () => {
-              window.alert("Take user to shop");
+              notify({
+                type: "info",
+                title: "Coming Soon.",
+                message: "Shop is currently being created.",
+              });
             }}
           >
             <img src="shopping-bag.png" alt="" />

@@ -122,6 +122,30 @@ export async function removeContact(supa: SupabaseClient, id: string) {
   const { error } = await supa.from("contacts").delete().eq("id", id);
   if (error) throw error;
 }
+// src/utils/validation.ts
+
+/**
+ * Strong password: 8+ chars, at least 1 upper, 1 lower, 1 number, 1 special
+ */
+export const validatePwStrong = (s: string): string | null => {
+  if (!s) return "Password is required.";
+  if (s.length < 8) return "Use at least 8 characters.";
+  if (!/[A-Z]/.test(s)) return "Add at least one uppercase letter.";
+  if (!/[a-z]/.test(s)) return "Add at least one lowercase letter.";
+  if (!/[0-9]/.test(s)) return "Add at least one number.";
+  // safe special character class (no range errors)
+  if (!/[!@#$%^&*()[\]{}._+\-=?<>;:'"\\|~`/]/.test(s))
+    return "Add at least one special character.";
+  return null;
+};
+
+/**
+ * Confirms password match
+ */
+export const validatePwMatch = (s: string, pw: string): string | null => {
+  if (!s) return "Please confirm your password.";
+  return s === pw ? null : "Passwords don't match.";
+};
 
 // ----- Public Pages (QR) -----
 export async function getOrCreatePublicToken(

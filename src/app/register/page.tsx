@@ -8,6 +8,7 @@ import { RestrictedInput } from "@/components/RestrictedInput/page";
 import { LoadingScreen } from "@/components/LoadingScreen/page";
 import { NoticeDialog } from "@/components/NoticeDialog/page";
 import type { User } from "@supabase/supabase-js";
+import { validatePwMatch, validatePwStrong } from "../utils";
 
 export function hasNoIdentities(user: User | null): boolean {
   return (
@@ -18,22 +19,6 @@ export function hasNoIdentities(user: User | null): boolean {
 const validateEmail = (s: string) => {
   if (!s) return null;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) ? null : "Enter a valid email.";
-};
-
-const validatePwStrong = (s: string) => {
-  if (!s) return null;
-  if (s.length < 8) return "Use at least 8 characters.";
-  if (!/[A-Z]/.test(s)) return "Add at least one uppercase letter.";
-  if (!/[a-z]/.test(s)) return "Add at least one lowercase letter.";
-  if (!/[0-9]/.test(s)) return "Add at least one number.";
-  if (!/[!@#$%^&*()[\]{}._+\-=?<>;:'\"`~\\|/]/.test(s))
-    return "Add at least one special character.";
-  return null;
-};
-
-const validatePwMatch = (s: string, pw: string) => {
-  if (!s) return null;
-  return s === pw ? null : "Passwords do not match.";
 };
 
 const validateName = (s: string) => {
