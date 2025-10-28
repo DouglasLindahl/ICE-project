@@ -1155,7 +1155,7 @@ export default function DashboardPage() {
   return (
     <StyledDashboardPage>
       <StyledDashboardHeader>
-        <StyledDashboardHeaderLogo>Name Here</StyledDashboardHeaderLogo>
+        <StyledDashboardHeaderLogo>NexaQR</StyledDashboardHeaderLogo>
 
         {/* Desktop actions (hidden on mobile) */}
         <StyledDashboardHeaderRight>

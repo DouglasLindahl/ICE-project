@@ -239,7 +239,7 @@ export default function Login() {
 
       <StyledLoginPage aria-busy={overlay.visible}>
         <StyledLoginForm>
-          <StyledLoginFormLogo>Name Here</StyledLoginFormLogo>
+          <StyledLoginFormLogo>NexaQR</StyledLoginFormLogo>
           <StyledLoginFormHeader>Welcome back</StyledLoginFormHeader>
           <StyledLoginFormSubHeader>
             Sign in to access your emergency contacts

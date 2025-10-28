@@ -34,10 +34,10 @@ const StyledHeader = styled.header`
 
     img {
       background-color: ${theme.colors.accent};
+      border-radius: 12px;
       padding: 4px;
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
+      width: 36px;
+      height: 36px;
       object-fit: contain;
     }
   }
@@ -337,7 +337,7 @@ export default function Home() {
       <StyledHeader>
         <div>
           <img src="security.png" alt="Shield icon" />
-          <StyledHeaderLogoText>Name Here</StyledHeaderLogoText>
+          <StyledHeaderLogoText>NexaQR</StyledHeaderLogoText>
         </div>
         <CustomButton
           variant="outline"
@@ -450,7 +450,7 @@ export default function Home() {
       <StyledFooter>
         <div>
           <img src="security.png" alt="Shield icon" />
-          <h4>Name here</h4>
+          <h4>NexaQR</h4>
         </div>
         <p>Your light in an emergency.</p>
       </StyledFooter>
