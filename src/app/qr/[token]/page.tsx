@@ -87,11 +87,10 @@ const IconWrap = styled.div`
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background: ${theme.colors.inputBackground};
 
   img {
-    width: 22px;
-    height: 22px;
+    width: 28px;
+    height: 28px;
   }
 `;
 
@@ -281,7 +280,7 @@ export default function QRPublicPage({
   return (
     <Page>
       <Stack>
-        <NexaLogo mode="dark" shimmer></NexaLogo>
+        <NexaLogo mode="dark"></NexaLogo>
         {loading && <Muted>Loading…</Muted>}
         {!loading && notFound && <Muted>No active contacts found.</Muted>}
 
@@ -289,7 +288,7 @@ export default function QRPublicPage({
           <>
             <GroupTitle>Priority contacts</GroupTitle>
             {priorityContacts.map((c) => {
-              const rel = c.relationship || "Contact";
+              const rel = c.relationship || "";
               const label = `Call ${c.name} (${rel})`;
               return (
                 <CardLink
@@ -304,7 +303,8 @@ export default function QRPublicPage({
 
                   <InfoCol>
                     <NameLine>
-                      {c.name} — {rel}
+                      {c.name}
+                      {rel ? `(${rel})` : ""}
                       <PriorityStar aria-hidden>★</PriorityStar>
                     </NameLine>
                     <PhoneLine>{c.phone_e164}</PhoneLine>
@@ -321,7 +321,7 @@ export default function QRPublicPage({
               <GroupTitle>Other contacts</GroupTitle>
             )}
             {otherContacts.map((c) => {
-              const rel = c.relationship || "Contact";
+              const rel = c.relationship || "";
               const label = `Call ${c.name} (${rel})`;
               return (
                 <CardLink
@@ -335,7 +335,7 @@ export default function QRPublicPage({
 
                   <InfoCol>
                     <NameLine>
-                      {c.name} — {rel}
+                      {c.name} {rel ? `(${rel})` : ""}
                     </NameLine>
                     <PhoneLine>{c.phone_e164}</PhoneLine>
                   </InfoCol>

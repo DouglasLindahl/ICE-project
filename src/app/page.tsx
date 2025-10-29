@@ -339,7 +339,7 @@ export default function Home() {
 
         <StyledHeroImage>
           {/* If you prefer next/image, swap the tag below to <Image fill ... /> with a wrapper */}
-          <img src="heroImage.png" alt="App preview" />
+          <img src="sampleImage.png" alt="App preview" />
         </StyledHeroImage>
       </StyledHero>
 
