@@ -45,11 +45,9 @@ const StyledLogo = styled.div<StyledProps>`
   }};
 
   img {
-    background-color: ${theme.colors.accent};
-    padding: 4px;
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+
     object-fit: contain;
 
     ${({ $shimmer }) =>
@@ -79,7 +77,7 @@ const NexaLogo: React.FC<NexaLogoProps> = ({
 }) => {
   return (
     <StyledLogo $mode={mode} $shimmer={shimmer}>
-      <img src="security.png" alt="Shield icon" />
+      <img src="/shield-accent.png" alt="icon" />
       NexaQR
     </StyledLogo>
   );

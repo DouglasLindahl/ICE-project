@@ -28,27 +28,6 @@ const StyledHeader = styled.header`
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-
-  div {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-
-    img {
-      background-color: ${theme.colors.accent};
-      border-radius: 12px;
-      padding: 4px;
-      width: 36px;
-      height: 36px;
-      object-fit: contain;
-    }
-  }
-`;
-
-const StyledHeaderLogoText = styled.h1`
-  font-weight: bold;
-  font-size: clamp(16px, 3.8vw, 18px);
 `;
 
 const StyledHero = styled.section`

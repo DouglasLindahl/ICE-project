@@ -5,6 +5,7 @@ import { useEffect, useState, use } from "react";
 import { createClient } from "@/lib/supabase/browserClient";
 import styled from "styled-components";
 import { theme } from "../../../../styles/theme";
+import NexaLogo from "@/components/NexaLogo/page";
 
 /* =========================
    Types
@@ -280,6 +281,7 @@ export default function QRPublicPage({
   return (
     <Page>
       <Stack>
+        <NexaLogo mode="dark" shimmer></NexaLogo>
         {loading && <Muted>Loading…</Muted>}
         {!loading && notFound && <Muted>No active contacts found.</Muted>}
 

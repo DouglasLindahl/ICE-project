@@ -168,7 +168,7 @@ const StyledDashboardPage = styled.div`
 `;
 
 const StyledDashboardHeader = styled.header`
-  position: relative; /* ensure dropdown anchors to header */
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -177,16 +177,12 @@ const StyledDashboardHeader = styled.header`
   background-color: ${theme.colors.card};
   border-bottom: 1px solid ${theme.colors.border};
 
-  @media (max-width: 900px) {
-    padding: 12px 16px;
+  @media (max-width: 1100px) {
+    padding: 24px 24px;
   }
-`;
-
-const StyledDashboardHeaderLogo = styled.div`
-  font-size: 16px;
-  font-weight: bold;
-  width: 24px;
-  height: 24px;
+  @media (max-width: 900px) {
+    padding: 16px;
+  }
 `;
 
 const StyledDashboardHeaderRight = styled.div`
@@ -1156,9 +1152,7 @@ export default function DashboardPage() {
   return (
     <StyledDashboardPage>
       <StyledDashboardHeader>
-        <StyledDashboardHeaderLogo>
-          <NexaLogo mode="dark" shimmer></NexaLogo>
-        </StyledDashboardHeaderLogo>
+        <NexaLogo mode="dark" shimmer></NexaLogo>
 
         {/* Desktop actions (hidden on mobile) */}
         <StyledDashboardHeaderRight>
