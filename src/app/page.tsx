@@ -4,7 +4,9 @@ import styles from "./page.module.css";
 import styled from "styled-components";
 import { theme } from "../../styles/theme";
 import { useRouter } from "next/navigation";
-import { CustomButton } from "@/components/CustomButton/page";
+import { NexaButton } from "@/components/NexaButton/page";
+import NexaFooter from "@/components/NexaFooter/page";
+import NexaLogo from "@/components/NexaLogo/page";
 
 // --- Responsive helpers
 const breakpoints = {
@@ -22,6 +24,7 @@ const StyledHeader = styled.header`
   padding: 14px ${PagePad};
   border-bottom: 1px solid ${theme.colors.border};
   display: flex;
+
   justify-content: space-between;
   align-items: center;
   gap: 12px;
@@ -46,16 +49,6 @@ const StyledHeader = styled.header`
 const StyledHeaderLogoText = styled.h1`
   font-weight: bold;
   font-size: clamp(16px, 3.8vw, 18px);
-`;
-
-const StyledSignInButton = styled.button`
-  padding: 10px 16px;
-  border-radius: 8px;
-  border: 1px solid ${theme.colors.border};
-  min-width: 44px;
-  &:hover {
-    cursor: pointer;
-  }
 `;
 
 const StyledHero = styled.section`
@@ -335,18 +328,16 @@ export default function Home() {
   return (
     <StyledPage className={styles.page}>
       <StyledHeader>
-        <div>
-          <img src="security.png" alt="Shield icon" />
-          <StyledHeaderLogoText>NexaQR</StyledHeaderLogoText>
-        </div>
-        <CustomButton
+        <NexaLogo mode="dark" shimmer />
+
+        <NexaButton
           variant="outline"
           onClick={() => {
             router.push("/login");
           }}
         >
           Sign In
-        </CustomButton>
+        </NexaButton>
       </StyledHeader>
 
       <StyledHero>
@@ -357,14 +348,14 @@ export default function Home() {
             device. Generate a QR code for keychains, wristbands, or cards so
             help is always within reach.
           </p>
-          <CustomButton
+          <NexaButton
             variant="accent"
             onClick={() => {
               router.push("/register");
             }}
           >
             Get Started Free
-          </CustomButton>
+          </NexaButton>
         </StyledHeroInfo>
 
         <StyledHeroImage>
@@ -447,13 +438,7 @@ export default function Home() {
         </StyledTakeItWithYouCardSection>
       </StyledTakeItWithYou>
 
-      <StyledFooter>
-        <div>
-          <img src="security.png" alt="Shield icon" />
-          <h4>NexaQR</h4>
-        </div>
-        <p>Your light in an emergency.</p>
-      </StyledFooter>
+      <NexaFooter></NexaFooter>
     </StyledPage>
   );
 }

@@ -98,7 +98,7 @@ const Btn = styled.button<{ $variant?: "primary" | "ghost" }>`
         `}
 `;
 
-export function NoticeDialog({
+export function NexaPopup({
   open,
   type = "info",
   title,

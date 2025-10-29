@@ -5,10 +5,10 @@ import { theme } from "../../../styles/theme";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/browserClient";
-import { RestrictedInput } from "@/components/RestrictedInput/page";
+import { NexaInput } from "@/components/NexaInput/page";
 import { LoadingScreen } from "@/components/LoadingScreen/page";
-import { NoticeDialog } from "@/components/NoticeDialog/page";
-import { CustomButton } from "@/components/CustomButton/page";
+import { NexaPopup } from "@/components/NexaPopup/page";
+import { NexaButton } from "@/components/NexaButton/page";
 import { validatePwMatch, validatePwStrong } from "../utils";
 
 /* ============================
@@ -166,7 +166,7 @@ export default function ResetPasswordPage() {
       )}
 
       {notice.open && (
-        <NoticeDialog
+        <NexaPopup
           open={notice.open}
           type={notice.type}
           title={notice.title}
@@ -184,7 +184,7 @@ export default function ResetPasswordPage() {
           <Form onSubmit={handleUpdate}>
             <Label htmlFor="new_pw">
               New password
-              <RestrictedInput
+              <NexaInput
                 id="new_pw"
                 type="password"
                 placeholder="New Password"
@@ -200,7 +200,7 @@ export default function ResetPasswordPage() {
 
             <Label htmlFor="confirm_pw">
               Repeat password
-              <RestrictedInput
+              <NexaInput
                 id="Confirm_pw"
                 type="password"
                 placeholder="Repeat Password"
@@ -214,9 +214,9 @@ export default function ResetPasswordPage() {
               />
             </Label>
 
-            <CustomButton variant="accent" type="submit" disabled={disabled}>
+            <NexaButton variant="accent" type="submit" disabled={disabled}>
               {submitting ? "Updating…" : "Update password"}
-            </CustomButton>
+            </NexaButton>
           </Form>
         </Card>
       </Page>

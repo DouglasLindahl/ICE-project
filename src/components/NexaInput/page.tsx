@@ -5,7 +5,7 @@ import { theme } from "../../../styles/theme";
 
 type Preset = "none" | "alphanumeric" | "numeric" | "e164" | "name";
 
-type RestrictedInputProps = {
+type NexaInputProps = {
   value: string;
   onChange: (v: string) => void;
   type?: React.HTMLInputTypeAttribute;
@@ -118,7 +118,7 @@ function stripEmoji(s: string) {
   return s.replace(EMOJI_REGEX, "");
 }
 
-function applyTrim(s: string, mode: RestrictedInputProps["trim"]) {
+function applyTrim(s: string, mode: NexaInputProps["trim"]) {
   switch (mode) {
     case "start":
       return s.replace(/^\s+/, "");
@@ -154,7 +154,7 @@ function presetFilter(preset: Preset, raw: string): string {
 /* =========================
    Component
    ========================= */
-export function RestrictedInput({
+export function NexaInput({
   value,
   onChange,
   multiline,
@@ -178,7 +178,7 @@ export function RestrictedInput({
   id,
   showPasswordToggle = true,
   passwordToggleAriaLabel = "Toggle password visibility",
-}: RestrictedInputProps) {
+}: NexaInputProps) {
   const [touched, setTouched] = useState(false);
   const [showPw, setShowPw] = useState(false);
 

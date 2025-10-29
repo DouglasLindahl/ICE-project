@@ -11,12 +11,12 @@ import {
   validatePwStrong,
 } from "../utils";
 import {
-  RestrictedInput,
+  NexaInput,
   validateE164,
   validateName,
-} from "@/components/RestrictedInput/page";
+} from "@/components/NexaInput/page";
 import { theme } from "../../../styles/theme";
-import { CustomButton } from "@/components/CustomButton/page";
+import { NexaButton } from "@/components/NexaButton/page";
 import { LoadingScreen } from "@/components/LoadingScreen/page";
 
 // Types
@@ -430,14 +430,14 @@ export default function Settings() {
     <StyledSettingsPage>
       <StyledSettingsPageHeader>
         <StyledSettingsPageHeaderLeft>
-          <CustomButton
+          <NexaButton
             noPadding
             variant="ghost"
             onClick={() => router.push("/dashboard")}
             aria-label="Back to Dashboard"
           >
             Back to Dashboard
-          </CustomButton>
+          </NexaButton>
         </StyledSettingsPageHeaderLeft>
       </StyledSettingsPageHeader>
 
@@ -471,7 +471,7 @@ export default function Settings() {
               >
                 <Field>
                   <span>Full name</span>
-                  <RestrictedInput
+                  <NexaInput
                     value={fullName}
                     onChange={setFullName}
                     placeholder="Jane Doe"
@@ -490,7 +490,7 @@ export default function Settings() {
 
                 <Field>
                   <span>Phone number</span>
-                  <RestrictedInput
+                  <NexaInput
                     value={phone}
                     onChange={setPhone}
                     placeholder="+15551234567"
@@ -509,7 +509,7 @@ export default function Settings() {
 
                 <Field>
                   <span>Additional information</span>
-                  <RestrictedInput
+                  <NexaInput
                     value={additionalInfo}
                     onChange={setAdditionalInfo}
                     placeholder="Notes, preferences, etc."
@@ -525,20 +525,20 @@ export default function Settings() {
                 </Field>
 
                 <Row>
-                  <CustomButton
+                  <NexaButton
                     variant="primary"
                     type="submit"
                     disabled={loading || !userId}
                   >
                     Save changes
-                  </CustomButton>
-                  <CustomButton
+                  </NexaButton>
+                  <NexaButton
                     type="button"
                     variant="outline"
                     onClick={resetProfile}
                   >
                     Reset
-                  </CustomButton>
+                  </NexaButton>
                 </Row>
               </Form>
             </div>
@@ -555,7 +555,7 @@ export default function Settings() {
               >
                 <Field>
                   <span>Current password</span>
-                  <RestrictedInput
+                  <NexaInput
                     type="password"
                     value={currentPassword}
                     onChange={(v) => {
@@ -572,7 +572,7 @@ export default function Settings() {
 
                 <Field>
                   <span>New password</span>
-                  <RestrictedInput
+                  <NexaInput
                     type="password"
                     value={newPassword}
                     onChange={setNewPassword}
@@ -586,7 +586,7 @@ export default function Settings() {
 
                 <Field>
                   <span>Confirm new password</span>
-                  <RestrictedInput
+                  <NexaInput
                     type="password"
                     value={confirmNewPassword}
                     onChange={setConfirmNewPassword}
@@ -599,7 +599,7 @@ export default function Settings() {
                 </Field>
 
                 <Row>
-                  <CustomButton
+                  <NexaButton
                     type="submit"
                     variant="primary"
                     disabled={
@@ -612,7 +612,7 @@ export default function Settings() {
                     }
                   >
                     Change password
-                  </CustomButton>
+                  </NexaButton>
                 </Row>
 
                 <Helper>
@@ -642,13 +642,13 @@ export default function Settings() {
                   </Helper>
                 </Field>
                 <Row>
-                  <CustomButton
+                  <NexaButton
                     variant="primary"
                     type="button"
                     onClick={() => {}}
                   >
                     Export
-                  </CustomButton>
+                  </NexaButton>
                 </Row>
 
                 <Field>
@@ -660,13 +660,13 @@ export default function Settings() {
                     data. This action is irreversible.
                   </Helper>
                   <Row style={{ marginTop: 12 }}>
-                    <CustomButton
+                    <NexaButton
                       type="button"
                       variant="danger"
                       onClick={() => {}}
                     >
                       Delete account
-                    </CustomButton>
+                    </NexaButton>
                   </Row>
                 </DangerBox>
               </Form>

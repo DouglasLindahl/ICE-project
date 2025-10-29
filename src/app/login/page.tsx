@@ -4,8 +4,10 @@ import { theme } from "../../../styles/theme";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browserClient";
 import { useState } from "react";
-import { RestrictedInput } from "@/components/RestrictedInput/page";
+import { NexaInput } from "@/components/NexaInput/page";
 import { LoadingScreen } from "@/components/LoadingScreen/page";
+import NexaFooter from "@/components/NexaFooter/page";
+import NexaLogo from "@/components/NexaLogo/page";
 
 // quick, pragmatic validators
 const validateEmail = (s: string) => {
@@ -74,7 +76,7 @@ const RowBetween = styled.div`
   align-items: baseline;
 `;
 
-const StyledLoginFormInput = styled(RestrictedInput)`
+const StyledLoginFormInput = styled(NexaInput)`
   width: 100%;
 `;
 
@@ -239,7 +241,9 @@ export default function Login() {
 
       <StyledLoginPage aria-busy={overlay.visible}>
         <StyledLoginForm>
-          <StyledLoginFormLogo>NexaQR</StyledLoginFormLogo>
+          <StyledLoginFormLogo>
+            <NexaLogo mode="dark"></NexaLogo>
+          </StyledLoginFormLogo>
           <StyledLoginFormHeader>Welcome back</StyledLoginFormHeader>
           <StyledLoginFormSubHeader>
             Sign in to access your emergency contacts
@@ -325,6 +329,7 @@ export default function Login() {
           </StyledLoginFormHomeButton>
         </StyledLoginForm>
       </StyledLoginPage>
+      <NexaFooter></NexaFooter>
     </>
   );
 }

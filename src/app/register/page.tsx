@@ -4,11 +4,12 @@ import { theme } from "../../../styles/theme";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/browserClient";
-import { RestrictedInput } from "@/components/RestrictedInput/page";
+import { NexaInput } from "@/components/NexaInput/page";
 import { LoadingScreen } from "@/components/LoadingScreen/page";
-import { NoticeDialog } from "@/components/NoticeDialog/page";
+import { NexaPopup } from "@/components/NexaPopup/page";
 import type { User } from "@supabase/supabase-js";
 import { validatePwMatch, validatePwStrong } from "../utils";
+import NexaLogo from "@/components/NexaLogo/page";
 
 export function hasNoIdentities(user: User | null): boolean {
   return (
@@ -148,6 +149,7 @@ const H1 = styled.h1`
   font-size: 24px;
   font-weight: 100;
   text-align: center;
+  padding-top: 12px;
 `;
 const Sub = styled.p`
   font-size: 16px;
@@ -457,7 +459,7 @@ export default function Register() {
 
       <Page aria-busy={overlay.visible}>
         {notice.open && (
-          <NoticeDialog
+          <NexaPopup
             open={notice.open}
             type={notice.type}
             title={notice.title}
@@ -468,14 +470,14 @@ export default function Register() {
         )}
 
         <Card>
-          <Logo>NexaQR</Logo>
+          <NexaLogo mode="dark"></NexaLogo>
           <H1>Set up your safety circle</H1>
           <Sub>Create your emergency contact profile in just a few steps</Sub>
 
           <Form onSubmit={handleRegister}>
             <Field>
               <Label htmlFor="fullName">Full Name</Label>
-              <RestrictedInput
+              <NexaInput
                 id="fullName"
                 name="full_name"
                 ariaLabel="Full Name"
@@ -521,7 +523,7 @@ export default function Register() {
                 </div>
 
                 <div style={{ width: "90%" }}>
-                  <RestrictedInput
+                  <NexaInput
                     id="phone"
                     name="phone"
                     preset="e164"
@@ -543,7 +545,7 @@ export default function Register() {
 
             <Field>
               <Label htmlFor="email">Email</Label>
-              <RestrictedInput
+              <NexaInput
                 id="email"
                 name="email"
                 ariaLabel="Email"
@@ -561,7 +563,7 @@ export default function Register() {
 
             <Field>
               <Label htmlFor="password">Password</Label>
-              <RestrictedInput
+              <NexaInput
                 id="password"
                 name="password"
                 ariaLabel="Password"
@@ -579,7 +581,7 @@ export default function Register() {
 
             <Field>
               <Label htmlFor="confirmPassword">Repeat password</Label>
-              <RestrictedInput
+              <NexaInput
                 id="confirmPassword"
                 name="confirm_password"
                 ariaLabel="Repeat password"

@@ -103,7 +103,7 @@ const StyledButton = styled.button<ButtonProps>`
   }
 `;
 
-export function CustomButton({
+export function NexaButton({
   children,
   variant = "primary",
   fullWidth,

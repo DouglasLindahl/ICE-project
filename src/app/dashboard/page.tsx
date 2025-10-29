@@ -7,10 +7,7 @@ import styled from "styled-components";
 import { theme } from "../../../styles/theme";
 import { QrCanvas } from "@/components/QrCanvas";
 import { generateToken } from "@/utils/token";
-import {
-  RestrictedInput,
-  validateName,
-} from "@/components/RestrictedInput/page";
+import { NexaInput, validateName } from "@/components/NexaInput/page";
 import {
   getSessionUser,
   fetchProfile,
@@ -24,8 +21,10 @@ import {
   Contact,
 } from "../utils";
 import { LoadingScreen } from "@/components/LoadingScreen/page";
-import { CustomButton } from "@/components/CustomButton/page";
-import { NoticeDialog } from "@/components/NoticeDialog/page";
+import { NexaButton } from "@/components/NexaButton/page";
+import { NexaPopup } from "@/components/NexaPopup/page";
+import NexaFooter from "@/components/NexaFooter/page";
+import NexaLogo from "@/components/NexaLogo/page";
 
 /* ============================
    Country data & phone helpers
@@ -165,7 +164,7 @@ const RightColumn = styled.div`
 const StyledDashboardPage = styled.div`
   position: relative;
   background-color: ${theme.colors.background};
-  min-height: 100vh;
+  height: 100vh;
 `;
 
 const StyledDashboardHeader = styled.header`
@@ -186,6 +185,8 @@ const StyledDashboardHeader = styled.header`
 const StyledDashboardHeaderLogo = styled.div`
   font-size: 16px;
   font-weight: bold;
+  width: 24px;
+  height: 24px;
 `;
 
 const StyledDashboardHeaderRight = styled.div`
@@ -844,7 +845,7 @@ export default function DashboardPage() {
   } | null>(null);
 
   const ADDITIONAL_INFO_MAX = 1000;
-  // ===== Country-aware phone validation for RestrictedInput =====
+  // ===== Country-aware phone validation for NexaInput =====
 
   const validatePhoneByCountry = (v: string) => {
     if (!v) return "Phone is required.";
@@ -1155,7 +1156,9 @@ export default function DashboardPage() {
   return (
     <StyledDashboardPage>
       <StyledDashboardHeader>
-        <StyledDashboardHeaderLogo>NexaQR</StyledDashboardHeaderLogo>
+        <StyledDashboardHeaderLogo>
+          <NexaLogo mode="dark" shimmer></NexaLogo>
+        </StyledDashboardHeaderLogo>
 
         {/* Desktop actions (hidden on mobile) */}
         <StyledDashboardHeaderRight>
@@ -1304,7 +1307,7 @@ export default function DashboardPage() {
               Additional Information
             </StyledAdditionalInformationSectionHeader>
 
-            <RestrictedInput
+            <NexaInput
               value={additionalInfo}
               onChange={setAdditionalInfo}
               placeholder="Notes, preferences, etc."
@@ -1431,7 +1434,7 @@ export default function DashboardPage() {
 
             <Form onSubmit={addContact}>
               <Label htmlFor="name">Name</Label>
-              <RestrictedInput
+              <NexaInput
                 id="name"
                 ariaLabel="Name"
                 placeholder="Enter contact name"
@@ -1444,7 +1447,7 @@ export default function DashboardPage() {
               />
 
               <Label htmlFor="relationship">Relationship</Label>
-              <RestrictedInput
+              <NexaInput
                 id="relationship"
                 ariaLabel="Relationship"
                 placeholder="Parent, Partner, Friend…"
@@ -1484,7 +1487,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div style={{ width: "100%" }}>
-                  <RestrictedInput
+                  <NexaInput
                     preset="e164"
                     id="phone"
                     ariaLabel="Phone Number"
@@ -1540,7 +1543,7 @@ export default function DashboardPage() {
 
             <Form onSubmit={submitEdit}>
               <Label htmlFor="ename">Name</Label>
-              <RestrictedInput
+              <NexaInput
                 id="ename"
                 ariaLabel="Name"
                 placeholder="Enter contact name"
@@ -1555,7 +1558,7 @@ export default function DashboardPage() {
               />
 
               <Label htmlFor="erel">Relationship</Label>
-              <RestrictedInput
+              <NexaInput
                 id="erel"
                 ariaLabel="Relationship"
                 placeholder="Parent, Partner, Friend…"
@@ -1595,7 +1598,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div style={{ width: "100%" }}>
-                  <RestrictedInput
+                  <NexaInput
                     id="ephone"
                     preset="e164"
                     ariaLabel="Phone Number"
@@ -1664,25 +1667,25 @@ export default function DashboardPage() {
             </DangerBar>
 
             <ModalActionsRow>
-              <CustomButton
+              <NexaButton
                 variant="outline"
                 onClick={() => setShowDelete(false)}
               >
                 Cancel
-              </CustomButton>
-              <CustomButton
+              </NexaButton>
+              <NexaButton
                 variant="danger"
                 onClick={confirmDelete}
                 disabled={deleting}
               >
                 {deleting ? "Deleting…" : "Delete"}
-              </CustomButton>
+              </NexaButton>
             </ModalActionsRow>
           </Modal>
         </Backdrop>
       )}
       {notice && (
-        <NoticeDialog
+        <NexaPopup
           open={noticeOpen}
           type={notice.type}
           title={notice.title}
