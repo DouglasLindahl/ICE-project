@@ -22,7 +22,6 @@ export default function NexaFooter() {
   return (
     <StyledFooter>
       <NexaLogo></NexaLogo>
-      <p>Your light in an emergency.</p>
     </StyledFooter>
   );
 }

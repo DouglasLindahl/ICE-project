@@ -323,9 +323,9 @@ export default function Home() {
         <StyledHeroInfo>
           <h2>Never stranded without your contacts.</h2>
           <p>
-            Store your emergency contacts safely and access them from any
-            device. Generate a QR code for keychains, wristbands, or cards so
-            help is always within reach.
+            Store your contacts safely and access them from any device. Generate
+            a QR code for keychains, wristbands, or cards so help is always
+            within reach.
           </p>
           <NexaButton
             variant="accent"
@@ -345,10 +345,7 @@ export default function Home() {
 
       <StyledHowItWorks>
         <h3>How It Works</h3>
-        <p>
-          Three simple steps to ensure you are never without your emergency
-          contacts
-        </p>
+        <p>Three simple steps to ensure you are never without your contacts</p>
 
         <StyledHowItWorksCardSection>
           <StyledHowItWorksCard>
@@ -357,8 +354,8 @@ export default function Home() {
             </StyledHowItWorksCardImageWrapper>
             <h3>Add Your Contacts</h3>
             <p>
-              Sign up and add your emergency contacts with names, relationships,
-              and phone numbers.
+              Sign up and add your contacts with names, relationships, and phone
+              numbers.
             </p>
           </StyledHowItWorksCard>
 
@@ -368,8 +365,8 @@ export default function Home() {
             </StyledHowItWorksCardImageWrapper>
             <h3>Get Your QR Code</h3>
             <p>
-              Generate your personal QR code that links to your emergency
-              contact information.
+              Generate your personal QR code that links to your contact
+              information.
             </p>
           </StyledHowItWorksCard>
 

@@ -14,8 +14,8 @@ export default function PrivacyPage() {
       </p>
       <h2>1. What we collect</h2>
       <p>
-        Account info (name, email, phone), emergency contacts you add, and basic
-        usage data.
+        Account info (name, email, phone), contacts you add, and basic usage
+        data.
       </p>
       <h2>2. How we use it</h2>
       <p>To provide the app, secure your account, and improve features.</p>

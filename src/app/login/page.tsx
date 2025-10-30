@@ -246,7 +246,7 @@ export default function Login() {
           </StyledLoginFormLogo>
           <StyledLoginFormHeader>Welcome back</StyledLoginFormHeader>
           <StyledLoginFormSubHeader>
-            Sign in to access your emergency contacts
+            Sign in to access your contacts
           </StyledLoginFormSubHeader>
 
           <StyledForm onSubmit={handleSubmit}>

@@ -1243,7 +1243,7 @@ export default function DashboardPage() {
           <StyledDashboardContactsSection>
             <StyledDashboardContactsSectionHeaderSection>
               <StyledDashboardContactsSectionHeader>
-                Emergency Contacts
+                Your Contacts
               </StyledDashboardContactsSectionHeader>
               <StyledDashboardContactsSectionAddContactButton
                 onClick={() => setShowAdd(true)}
@@ -1334,7 +1334,7 @@ export default function DashboardPage() {
           <StyledDashboardQRCodeSection>
             <StyledDashboardQRCodeSectionHeaderSection>
               <StyledDashboardQRCodeSectionHeader>
-                Your Emergency QR Code
+                Your QR Code
               </StyledDashboardQRCodeSectionHeader>
             </StyledDashboardQRCodeSectionHeaderSection>
 
@@ -1348,11 +1348,11 @@ export default function DashboardPage() {
 
             <StyledDashboardQRCodeSectionQRCodeTextSection>
               <StyledDashboardQRCodeSectionSubHeader>
-                Scan to access emergency contacts
+                Scan to access contacts
               </StyledDashboardQRCodeSectionSubHeader>
               <StyledDashboardQRCodeSectionSubText>
-                Anyone can scan this code to see your emergency contact
-                information you chose to share.
+                Anyone can scan this code to see your contact information you
+                chose to share.
               </StyledDashboardQRCodeSectionSubText>
             </StyledDashboardQRCodeSectionQRCodeTextSection>
 
@@ -1379,7 +1379,7 @@ export default function DashboardPage() {
                   if (navigator.share) {
                     try {
                       await navigator.share({
-                        title: "My emergency contacts",
+                        title: "My contacts",
                         url: publicUrl,
                       });
                     } catch {}
@@ -1388,7 +1388,7 @@ export default function DashboardPage() {
                   notify({
                     type: "success",
                     title: "Link copied",
-                    message: "Your public emergency link is on the clipboard.",
+                    message: "Your public link is on the clipboard.",
                   });
                 }}
               >
@@ -1399,8 +1399,8 @@ export default function DashboardPage() {
 
             <StyledDashboardQRCodeSectionQRCodeDisclaimer>
               Print this QR on keychains, wristbands, or wallet cards for quick
-              emergency access. You can also visit our shop to purchase already
-              made items, ready for immediate use.
+              access. You can also visit our shop to purchase already made
+              items, ready for immediate use.
             </StyledDashboardQRCodeSectionQRCodeDisclaimer>
           </StyledDashboardQRCodeSection>
         </RightColumn>
@@ -1417,10 +1417,10 @@ export default function DashboardPage() {
             onMouseDown={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label="Add Emergency Contact"
+            aria-label="Add Contact"
           >
             <ModalHeader>
-              <ModalTitle>Add Emergency Contact</ModalTitle>
+              <ModalTitle>Add Contact</ModalTitle>
               <CloseBtn onClick={() => setShowAdd(false)} aria-label="Close">
                 <img src="/cross.png" alt="Close" />
               </CloseBtn>
@@ -1526,7 +1526,7 @@ export default function DashboardPage() {
             onMouseDown={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label="Edit Emergency Contact"
+            aria-label="Edit Contact"
           >
             <ModalHeader>
               <ModalTitle>Edit Contact</ModalTitle>
