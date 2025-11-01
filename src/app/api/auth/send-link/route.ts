@@ -1,12 +1,15 @@
 export const runtime = "nodejs";
+
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/adminClient";
 import { Resend } from "resend";
 import fs from "node:fs/promises";
 import path from "node:path";
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// 🔍 Define strong type for parsed request body
 const Body = z.object({
   email: z.string().email(),
   password: z.string().min(6),
@@ -14,11 +17,15 @@ const Body = z.object({
   phone: z.string().optional(),
 });
 
-export async function POST(req: Request) {
+export async function POST(req: Request): Promise<NextResponse> {
+  // ✅ Load logo for inline attachment
   const logoPath = path.join(process.cwd(), "public", "shield-accent.png");
   const logoBuffer = await fs.readFile(logoPath);
+
   try {
+    // ✅ Validate request body
     const { email, password, name, phone } = Body.parse(await req.json());
+
     const supabase = createAdminClient();
     const now = new Date().toISOString();
 
@@ -39,9 +46,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const userId = userData.user.id;
+    const userId: string = userData.user.id;
 
-    // 2️⃣ Get Free tier subscription (if available)
+    // 2️⃣ Get Free tier subscription (if exists)
     const { data: freeTier, error: tierErr } = await supabase
       .from("subscription_tiers")
       .select("id")
@@ -52,10 +59,10 @@ export async function POST(req: Request) {
       console.warn("⚠️ No Free tier found:", tierErr.message);
     }
 
-    // 3️⃣ Upsert profile (make sure to include user_id and all relevant fields)
+    // 3️⃣ Upsert profile
     const { error: upsertErr } = await supabase.from("profiles").upsert(
       {
-        user_id: userId, // ✅ required for your schema
+        user_id: userId,
         display_name: name.trim(),
         phone_number: phone?.trim() || null,
         terms_version: "2025-03-01",
@@ -65,7 +72,7 @@ export async function POST(req: Request) {
         updated_at: now,
         subscription_tier_id: freeTier?.id ?? null,
       },
-      { onConflict: "user_id" } // ✅ must match PK or unique constraint
+      { onConflict: "user_id" }
     );
 
     if (upsertErr) {
@@ -93,25 +100,26 @@ export async function POST(req: Request) {
       );
     }
 
-    const link = linkData.properties.action_link;
+    const link: string = linkData.properties.action_link;
 
+    // 5️⃣ Construct email HTML
     const html = `
 <!doctype html>
 <html lang="en" style="margin:0; padding:0;">
   <body style="margin:0; padding:0; background-color:#f8fafc; text-align:center; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#0A2540;">
     <div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:16px;box-shadow:0 2px 8px rgba(10,37,64,0.08);padding:48px 28px;">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
-  <tr>
-    <td align="center" style="padding:0 0 24px 0;">
-      <img
-        src="cid:logo"
-        alt="NexaQR"
-        width="160"
-        style="display:block;border:0;outline:none;text-decoration:none;width:160px;height:auto;margin:0 auto;"
-      />
-    </td>
-  </tr>
-</table>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+        <tr>
+          <td align="center" style="padding:0 0 24px 0;">
+            <img
+              src="cid:logo"
+              alt="NexaQR"
+              width="160"
+              style="display:block;border:0;outline:none;text-decoration:none;width:160px;height:auto;margin:0 auto;"
+            />
+          </td>
+        </tr>
+      </table>
 
       <h1 style="font-size:26px;font-weight:700;margin-bottom:16px;color:#0A2540;">Confirm your email</h1>
       <p style="font-size:15px;line-height:1.6;color:#0A2540;margin:0 0 24px;">Hi ${name}, welcome aboard! Please confirm your email address to activate your account.</p>
@@ -126,20 +134,21 @@ export async function POST(req: Request) {
       <div style="font-size:12px;color:#5f6b7a;margin-top:32px;line-height:1.5;">
         You received this email because an account was created with ${email}.<br>
         If this wasn’t you, just ignore it.<br><br>
-        © ${new Date().getFullYear()} NexaQR · <a href="${
-      process.env.APP_URL
-    }" style="color:#FFB703;text-decoration:underline;">${
-      process.env.APP_URL
-    }</a>
+        © ${new Date().getFullYear()} NexaQR · 
+        <a href="${
+          process.env.APP_URL
+        }" style="color:#FFB703;text-decoration:underline;">
+          ${process.env.APP_URL}
+        </a>
       </div>
     </div>
   </body>
 </html>
 `;
 
-    // 6️⃣ Send email via Resend
-    await resend.emails.send({
-      from: process.env.EMAIL_FROM!,
+    // 6️⃣ Send via Resend
+    const result = await resend.emails.send({
+      from: process.env.EMAIL_FROM ?? "NexaQR <no-reply@nexaqr.com>",
       to: email,
       subject: "Confirm your NexaQR account",
       html,
@@ -153,13 +162,20 @@ export async function POST(req: Request) {
       ],
     });
 
-    console.log("✅ Confirmation email sent to", email);
+    if (result.error) {
+      console.error("❌ Resend error:", result.error);
+      return NextResponse.json(
+        { error: result.error.message || "Failed to send email" },
+        { status: 500 }
+      );
+    }
+
+    console.log(`✅ Confirmation email sent to ${email}`);
     return NextResponse.json({ ok: true });
-  } catch (err: any) {
-    console.error("❌ send-link error:", err);
-    return NextResponse.json(
-      { error: err.message || "Internal error" },
-      { status: 400 }
-    );
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error ? err.message : "Internal server error";
+    console.error("❌ send-link error:", message);
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }
