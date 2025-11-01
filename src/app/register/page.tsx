@@ -301,6 +301,17 @@ export default function Register() {
 
   async function handleRegister(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // you already collect these in the form:
+    sessionStorage.setItem(
+      "postSignupProfile",
+      JSON.stringify({
+        display_name: fullName,
+        phone_number: phone,
+        terms_version: "2025-03-01",
+        terms_accepted_at: new Date().toISOString(),
+        privacy_accepted_at: new Date().toISOString(),
+      })
+    );
 
     const nameErr = validateName(fullName);
     const emailErr = validateEmail(email);
@@ -331,10 +342,11 @@ export default function Register() {
     setOverlay({
       visible: true,
       message: "Creating your account…",
-      subtext: "Setting up your profile",
+      subtext: "Sending confirmation email",
     });
 
     try {
+      // Parse phone to E.164 if provided
       let phoneE164 = "";
       if (phone) {
         const parsed = toE164WithCountry(phone, addCountry);
@@ -350,82 +362,55 @@ export default function Register() {
         phoneE164 = parsed.e164;
       }
 
-      const { data, error } = await supa.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            display_name: fullName || "",
-            phone_number: phoneE164 || "",
-            terms_version: TERMS_VERSION,
-            terms_accepted_at: nowIso,
-            privacy_accepted_at: nowIso,
-          },
-          emailRedirectTo: process.env.NEXT_PUBLIC_APP_URL
-            ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
-            : undefined,
-        },
+      // Store what you want to apply after verification (in callback step)
+      sessionStorage.setItem(
+        "postSignupProfile",
+        JSON.stringify({
+          display_name: fullName || "",
+          phone_number: phoneE164 || "",
+          terms_version: TERMS_VERSION,
+          terms_accepted_at: nowIso,
+          privacy_accepted_at: nowIso,
+        })
+      );
+
+      const redirectTo = process.env.NEXT_PUBLIC_APP_URL
+        ? `${process.env.NEXT_PUBLIC_APP_URL}/callback`
+        : `${window.location.origin}/callback`;
+
+      const res = await fetch("/api/auth/send-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "signup", // or "invite" if you keep signups disabled
+          email,
+          password, // REQUIRED for "signup"
+          name: fullName,
+          phone: phone,
+          redirectTo,
+        }),
       });
 
-      if (error) {
-        setNotice({
-          open: true,
-          type: "error",
-          title: /already registered/i.test(error.message)
-            ? "Email already in use"
-            : "Registration failed",
-          message: /already registered/i.test(error.message)
-            ? "That email is already registered. Try signing in instead."
-            : error.message,
-          actions: [
-            {
-              label: "Go to Sign In",
-              onClick: () => router.push("/login"),
-              variant: "primary",
-            },
-          ],
-        });
-        return;
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error || "Failed to send confirmation email");
       }
 
-      // Guard: Supabase sometimes returns a user even if an existing unconfirmed account exists
-      if (hasNoIdentities(data.user)) {
-        setNotice({
-          open: true,
-          type: "error",
-          title: "Email already in use",
-          message: "That email is already registered. Try signing in instead.",
-          actions: [
-            {
-              label: "Go to Sign In",
-              onClick: () => router.push("/login"),
-              variant: "primary",
-            },
-          ],
-        });
-        return;
-      }
-
-      const { data: sessionCheck } = await supa.auth.getSession();
-      if (sessionCheck.session) {
-        setOverlay({ visible: true, message: "Redirecting…" });
-        router.push("/dashboard");
-      } else {
-        setNotice({
-          open: true,
-          type: "success",
-          title: "Check your email",
-          message:
-            "We sent a confirmation link to your inbox. Click it to finish creating your account.",
-          actions: [
-            {
-              label: "Open Mail App",
-              onClick: () => (window.location.href = "mailto:"),
-              variant: "primary",
-            },
-          ],
-        });
-      }
+      // Tell the user to check inbox; session won’t exist until they click the link
+      setNotice({
+        open: true,
+        type: "success",
+        title: "Check your email",
+        message:
+          "We sent you a confirmation link. Click it to finish creating your account.",
+        actions: [
+          {
+            label: "Open Mail App",
+            onClick: () => (window.location.href = "mailto:"),
+            variant: "primary",
+          },
+        ],
+      });
     } catch (err: unknown) {
       const message =
         err instanceof Error
@@ -434,7 +419,7 @@ export default function Register() {
       setNotice({
         open: true,
         type: "error",
-        title: "Something went wrong",
+        title: "Registration failed",
         message,
       });
     } finally {
