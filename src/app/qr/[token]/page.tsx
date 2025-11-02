@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/browserClient";
 import styled from "styled-components";
 import { theme } from "../../../../styles/theme";
 import NexaLogo from "@/components/NexaLogo/page";
-
+import { NexaButton } from "@/components/NexaButton/page";
+import { useRouter } from "next/navigation";
 /* =========================
    Types
    ========================= */
@@ -37,6 +38,7 @@ const Page = styled.main`
 `;
 
 const Stack = styled.div`
+  position: relative;
   width: 70vw;
   max-width: 720px;
   display: flex;
@@ -117,6 +119,15 @@ const PriorityStar = styled.span`
   color: ${theme.colors.accent};
   transform: translateY(-1px);
 `;
+const JoinButton = styled.div`
+  position: fixed;
+  bottom: 5%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  width: 100vw;
+`;
 
 const PhoneLine = styled.p`
   margin: 0;
@@ -173,7 +184,7 @@ export default function QRPublicPage({
   // Unwrap once, use the plain value everywhere (including deps)
   const { token } = use(params);
   const supa = createClient();
-
+  const router = useRouter();
   const [contacts, setContacts] = useState<PubContact[] | null>(null);
   const [additionalInfo, setAdditionalInfo] = useState<string | null>(null);
 
@@ -283,7 +294,6 @@ export default function QRPublicPage({
         <NexaLogo mode="dark"></NexaLogo>
         {loading && <Muted>Loading…</Muted>}
         {!loading && notFound && <Muted>No active contacts found.</Muted>}
-
         {!loading && !notFound && priorityContacts.length > 0 && (
           <>
             <GroupTitle>Priority contacts</GroupTitle>
@@ -314,7 +324,6 @@ export default function QRPublicPage({
             })}
           </>
         )}
-
         {!loading && !notFound && otherContacts.length > 0 && (
           <>
             {priorityContacts.length > 0 && (
@@ -344,13 +353,17 @@ export default function QRPublicPage({
             })}
           </>
         )}
-
         {!loading && !notFound && additionalInfo && (
           <InfoCard aria-label="Additional information">
             <InfoTitle>Additional Information</InfoTitle>
             <InfoBody>{additionalInfo}</InfoBody>
           </InfoCard>
         )}
+        <JoinButton>
+          <NexaButton onClick={() => router.push("/")} variant="primary">
+            Join NexaQR
+          </NexaButton>
+        </JoinButton>
       </Stack>
     </Page>
   );

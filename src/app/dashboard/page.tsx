@@ -19,6 +19,7 @@ import {
   buildPublicUrl,
   updateAdditionalInfo as upsertAdditionalInfo,
   Contact,
+  fetchMaxContacts,
 } from "../utils";
 import { LoadingScreen } from "@/components/LoadingScreen/page";
 import { NexaButton } from "@/components/NexaButton/page";
@@ -839,6 +840,12 @@ export default function DashboardPage() {
       variant?: "primary" | "ghost";
     }[];
   } | null>(null);
+  const [maxContacts, setMaxContacts] = useState<number | null>(null); // null = unlimited
+  const contactsCount = contacts.length;
+  const remaining = useMemo(() => {
+    if (maxContacts == null) return Infinity; // testers/unlimited
+    return Math.max(0, maxContacts - contactsCount);
+  }, [maxContacts, contactsCount]);
 
   const ADDITIONAL_INFO_MAX = 1000;
   // ===== Country-aware phone validation for NexaInput =====
@@ -934,6 +941,10 @@ export default function DashboardPage() {
       setContacts(rows);
       console.log(rows);
 
+      const cap = await fetchMaxContacts(supa, user.id);
+      if (!mounted) return;
+      setMaxContacts(cap);
+
       // Public URL (QR)
       const token = await getOrCreatePublicToken(supa, user.id, generateToken);
       if (!mounted) return;
@@ -957,6 +968,17 @@ export default function DashboardPage() {
 
   async function addContact(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (maxContacts !== null && contacts.length >= maxContacts) {
+      notify({
+        type: "error",
+        title: "Contact limit reached",
+        message: `Your plan allows ${maxContacts} contact${
+          maxContacts === 1 ? "" : "s"
+        }. Delete one or upgrade to add more.`,
+      });
+      return;
+    }
+
     if (!name || !phone || !userId) return;
     setSubmitting(true);
     try {
@@ -1087,6 +1109,7 @@ export default function DashboardPage() {
       });
     }
   }
+
   async function writeAdditionalInfoNow(text: string) {
     if (!userId) return;
     setAiSaving(true);
@@ -1156,6 +1179,14 @@ export default function DashboardPage() {
 
         {/* Desktop actions (hidden on mobile) */}
         <StyledDashboardHeaderRight>
+          <StyledDashboardHeaderButton
+            onClick={async () => {
+              router.replace("/subscriptions");
+            }}
+          >
+            <img src="setting.png" alt="" />
+            <p>subscriptions</p>
+          </StyledDashboardHeaderButton>
           <StyledDashboardHeaderButton
             onClick={async () => {
               notify({
@@ -1245,11 +1276,45 @@ export default function DashboardPage() {
               <StyledDashboardContactsSectionHeader>
                 Your Contacts
               </StyledDashboardContactsSectionHeader>
-              <StyledDashboardContactsSectionAddContactButton
-                onClick={() => setShowAdd(true)}
-              >
-                + Add Contact
-              </StyledDashboardContactsSectionAddContactButton>
+
+              {/* Right side: usage + Add button */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <Muted>
+                  {maxContacts == null
+                    ? `${contacts.length} contact${
+                        contacts.length === 1 ? "" : "s"
+                      }`
+                    : `${contacts.length}/${maxContacts} Contacts`}
+                </Muted>
+
+                <StyledDashboardContactsSectionAddContactButton
+                  onClick={() => {
+                    console.log(remaining);
+                    if (remaining <= 0) {
+                      notify({
+                        type: "error",
+                        title: "Contact limit reached",
+                        message:
+                          maxContacts == null
+                            ? "Unlimited plan — this shouldn’t happen."
+                            : `Your plan allows ${maxContacts} contact${
+                                maxContacts === 1 ? "" : "s"
+                              }. Delete one or upgrade to add more.`,
+                      });
+                      return;
+                    }
+                    setShowAdd(true);
+                  }}
+                  disabled={remaining <= 0}
+                  title={
+                    remaining <= 0
+                      ? "You’ve reached your plan’s contact limit"
+                      : undefined
+                  }
+                >
+                  + Add Contact
+                </StyledDashboardContactsSectionAddContactButton>
+              </div>
             </StyledDashboardContactsSectionHeaderSection>
 
             <StyledDashboardContactsSectionContactCardSection>

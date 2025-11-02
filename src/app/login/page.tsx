@@ -195,7 +195,7 @@ export default function Login() {
     }
   }
 
-  async function handleForgotPassword() {
+  async function handleForgotPasswordCustom() {
     setErrorMsg(null);
     setInfoMsg(null);
 
@@ -213,20 +213,27 @@ export default function Login() {
     });
 
     try {
-      const { error } = await supa.auth.resetPasswordForEmail(email, {
-        redirectTo: `${location.origin}/resetPassword`,
+      const res = await fetch("/api/auth/send-password-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+        }),
       });
-      if (error) {
-        setErrorMsg(error.message);
-        return;
+
+      // We return { ok: true } even if user doesn't exist (to prevent enumeration)
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error || "Could not send reset email.");
       }
+
       setInfoMsg("Password reset email sent. Check your inbox for a link.");
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setErrorMsg(err.message);
-      } else {
-        setErrorMsg("Could not send reset email. Please try again.");
-      }
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error
+          ? err.message
+          : "Could not send reset email. Please try again."
+      );
     } finally {
       setOverlay({ visible: false, message: "" });
     }
@@ -295,7 +302,7 @@ export default function Login() {
 
               <StyledTextButton
                 type="button"
-                onClick={handleForgotPassword}
+                onClick={handleForgotPasswordCustom}
                 aria-label="Reset your password"
               >
                 Forgot password?

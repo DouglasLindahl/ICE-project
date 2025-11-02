@@ -378,7 +378,7 @@ export default function Register() {
         ? `${process.env.NEXT_PUBLIC_APP_URL}/callback`
         : `${window.location.origin}/callback`;
 
-      const res = await fetch("/api/auth/send-link", {
+      const res = await fetch("/api/auth/send-confirm-register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

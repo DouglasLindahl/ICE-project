@@ -19,11 +19,35 @@ export type ProfileRow = {
   phone_number?: string | null;
   additional_information?: string | null;
 };
-function getErrorMessage(err: unknown): string {
-  if ((err as AuthError)?.message) return (err as AuthError).message;
-  if (err instanceof Error && err.message) return err.message;
-  if (typeof err === "string") return err;
-  return "Could not change password.";
+export async function fetchMaxContacts(
+  supa: SupabaseClient,
+  userId: string
+): Promise<number | null> {
+  // 1) get the user's chosen tier id from profiles
+  const { data: prof, error: pErr } = await supa
+    .from("profiles")
+    .select("subscription_tier_id")
+    .eq("user_id", userId)
+    .single();
+
+  if (pErr) {
+    console.warn("fetchMaxContacts: profile error:", pErr.message);
+    return null; // treat as unlimited if unknown
+  }
+  if (!prof?.subscription_tier_id) return null; // no tier = unlimited
+
+  // 2) look up the tier’s max_contacts
+  const { data: tier, error: tErr } = await supa
+    .from("subscription_tiers")
+    .select("max_contacts")
+    .eq("id", prof.subscription_tier_id)
+    .single();
+
+  if (tErr) {
+    console.warn("fetchMaxContacts: tier error:", tErr.message);
+    return null; // treat as unlimited if unknown
+  }
+  return tier?.max_contacts ?? null; // null = unlimited (e.g. Testers)
 }
 // ----- Session / Auth -----
 export async function getSessionUser(supa: SupabaseClient) {
