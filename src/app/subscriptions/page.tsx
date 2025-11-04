@@ -44,10 +44,10 @@ const HeaderRow = styled.div`
   flex-wrap: wrap;
 `;
 const BackButtonWrapper = styled.div`
-  position: fixed;
   top: 20px;
   left: 20px;
   z-index: 50; /* keep it above everything */
+  margin-bottom: 24px;
 `;
 
 const H1 = styled.h1`
@@ -332,8 +332,9 @@ export default function Subscriptions() {
         const [tiersRes, profileRes, contactsRes] = await Promise.all([
           supa
             .from("subscription_tiers")
-            .select("id,name,price,max_contacts,description,is_active")
+            .select("id,name,price,max_contacts,description,is_active,can_buy")
             .eq("is_active", true)
+            .eq("can_buy", true)
             .order("price", { ascending: true }),
           supa
             .from("profiles")
@@ -403,7 +404,7 @@ export default function Subscriptions() {
   if (loading) {
     return (
       <LoadingScreen
-        message="Loading settings…"
+        message="Loading subscriptions…"
         subtext="Fetching your Information"
       />
     );

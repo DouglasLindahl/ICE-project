@@ -847,9 +847,6 @@ export default function DashboardPage() {
     return Math.max(0, maxContacts - contactsCount);
   }, [maxContacts, contactsCount]);
 
-  const ADDITIONAL_INFO_MAX = 1000;
-  // ===== Country-aware phone validation for NexaInput =====
-
   const validatePhoneByCountry = (v: string) => {
     if (!v) return "Phone is required.";
     const p = toE164WithCountry(v, addCountry);
@@ -1235,9 +1232,21 @@ export default function DashboardPage() {
           <MobileMenu id="mobile-menu" role="menu" ref={menuRef}>
             <MobileMenuItem
               role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                window.alert("Take user to shop");
+              onClick={async () => {
+                router.replace("/subscriptions");
+              }}
+            >
+              <img src="shopping-bag.png" alt="" />
+              Subscriptions
+            </MobileMenuItem>
+            <MobileMenuItem
+              role="menuitem"
+              onClick={async () => {
+                notify({
+                  type: "info",
+                  title: "Coming Soon.",
+                  message: "Shop is currently being created.",
+                });
               }}
             >
               <img src="shopping-bag.png" alt="" />
@@ -1381,9 +1390,6 @@ export default function DashboardPage() {
             />
 
             <StyledAdditionalInformationSectionActions>
-              <Muted>
-                {additionalInfo.length}/{ADDITIONAL_INFO_MAX}
-              </Muted>
               <StyledAdditionalInformationSectionSubmitButton
                 onClick={() => writeAdditionalInfoNow(additionalInfo)}
                 disabled={aiSaving}
