@@ -10,6 +10,7 @@ import { NexaPopup } from "@/components/NexaPopup/page";
 import type { User } from "@supabase/supabase-js";
 import { validatePwMatch, validatePwStrong } from "../utils";
 import NexaLogo from "@/components/NexaLogo/page";
+import NexaFooter from "@/components/NexaFooter/page";
 
 export function hasNoIdentities(user: User | null): boolean {
   return (
@@ -621,6 +622,7 @@ export default function Register() {
           </HomeBtn>
         </Card>
       </Page>
+      <NexaFooter></NexaFooter>
     </>
   );
 }

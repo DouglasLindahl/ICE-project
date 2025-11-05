@@ -18,9 +18,10 @@ import {
 import { theme } from "../../../styles/theme";
 import { NexaButton } from "@/components/NexaButton/page";
 import { LoadingScreen } from "@/components/LoadingScreen/page";
+import NexaFooter from "@/components/NexaFooter/page";
+import { NexaPopup } from "@/components/NexaPopup/page"; // ⟵ ensure this exists
 
 // Types
-
 type TabKey = "profile" | "privacy" | "notifications" | "account";
 
 // Breakpoints
@@ -68,7 +69,6 @@ const StyledSettingsPageHeaderLeft = styled.div`
 
 const StyledSettingsPageSettings = styled.div`
   width: 100%;
-  min-height: calc(100dvh - 64px);
 
   @media (min-width: ${BP.md}) {
     display: grid;
@@ -267,6 +267,7 @@ const CheckItem = styled.li<{ $ok: boolean }>`
     width: 1em;
   }
 `;
+
 export default function Settings() {
   const router = useRouter();
   const supa = createClient();
@@ -296,6 +297,13 @@ export default function Settings() {
     type: "info" | "success" | "error";
     msg: string;
   } | null>(null);
+
+  // DELETE ACCOUNT modal state
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePw, setDeletePw] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [confirmText, setConfirmText] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -398,8 +406,53 @@ export default function Settings() {
     }
   };
 
+  // --- NEW: delete account flow (reauth + call API) ---
+  async function confirmDeleteAccount() {
+    if (!email) {
+      setDeleteError("No email in session.");
+      return;
+    }
+    if (confirmText.trim().toLowerCase() !== "delete account") {
+      setDeleteError('Please type "delete account" to confirm.');
+      return;
+    }
+    if (!deletePw) {
+      setDeleteError("Please enter your password.");
+      return;
+    }
+    setDeleteError(null);
+    setDeleteBusy(true);
+
+    try {
+      // Reauthenticate first
+      const { error: reauthErr } = await supa.auth.signInWithPassword({
+        email,
+        password: deletePw,
+      });
+      if (reauthErr) throw new Error("Incorrect password.");
+
+      // Call API
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: true }),
+      });
+
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error ?? "Delete failed.");
+      }
+
+      await supa.auth.signOut();
+      router.replace("/");
+    } catch (e) {
+      setDeleteError(getErrorMessage(e));
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
   const exportData = () => {};
-  const deleteAccount = () => {};
   const resetProfile = () => {
     setFullName(originalFullName);
     setPhone(originalPhone);
@@ -663,7 +716,11 @@ export default function Settings() {
                     <NexaButton
                       type="button"
                       variant="danger"
-                      onClick={() => {}}
+                      onClick={() => {
+                        setDeletePw("");
+                        setDeleteError(null);
+                        setDeleteOpen(true);
+                      }}
                     >
                       Delete account
                     </NexaButton>
@@ -674,6 +731,89 @@ export default function Settings() {
           )}
         </Content>
       </StyledSettingsPageSettings>
+
+      {/* --- NEW: Delete Account Modal --- */}
+      {deleteOpen && (
+        <NexaPopup
+          open={deleteOpen}
+          type="error"
+          title="Delete your account?"
+          message="This will permanently remove your account and all associated data. Please confirm below."
+          disableBackdropClose={deleteBusy}
+          disableEscClose={deleteBusy}
+          onClose={() => !deleteBusy && setDeleteOpen(false)}
+          actions={[
+            {
+              label: deleteBusy ? "Deleting…" : "Delete",
+              onClick: confirmDeleteAccount,
+              variant: "primary",
+              disabled:
+                deleteBusy ||
+                !deletePw ||
+                confirmText.trim().toLowerCase() !== "delete account",
+              autoFocus: true,
+            },
+            {
+              label: "Cancel",
+              onClick: () => setDeleteOpen(false),
+              variant: "ghost",
+              disabled: deleteBusy,
+            },
+          ]}
+        >
+          <div style={{ marginTop: 8 }}>
+            <label
+              htmlFor="delete_password"
+              style={{ fontSize: 12, display: "block", marginBottom: 6 }}
+            >
+              Confirm with your password
+            </label>
+            <NexaInput
+              id="delete_password"
+              type="password"
+              name="delete_password"
+              ariaLabel="Confirm password to delete account"
+              placeholder="Enter your password"
+              value={deletePw}
+              onChange={setDeletePw}
+              maxLength={128}
+              showValidity={false}
+              disabled={deleteBusy}
+            />
+
+            <label
+              htmlFor="confirm_text"
+              style={{
+                fontSize: 12,
+                display: "block",
+                marginTop: 12,
+                marginBottom: 6,
+              }}
+            >
+              Type <strong>"delete account"</strong> to confirm
+            </label>
+            <NexaInput
+              id="confirm_text"
+              name="confirm_text"
+              ariaLabel="Type delete account to confirm"
+              placeholder="delete account"
+              value={confirmText}
+              onChange={setConfirmText}
+              maxLength={32}
+              showValidity={false}
+              disabled={deleteBusy}
+            />
+
+            {deleteError ? (
+              <p style={{ color: "#b91c1c", fontSize: 12, marginTop: 8 }}>
+                {deleteError}
+              </p>
+            ) : null}
+          </div>
+        </NexaPopup>
+      )}
+
+      <NexaFooter />
     </StyledSettingsPage>
   );
 }

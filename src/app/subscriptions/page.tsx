@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/browserClient";
 import { theme } from "../../../styles/theme";
 import { NexaButton } from "@/components/NexaButton/page";
 import { LoadingScreen } from "@/components/LoadingScreen/page";
+import NexaFooter from "@/components/NexaFooter/page";
 
 /* -------------------- Types -------------------- */
 type Tier = {
@@ -24,10 +25,16 @@ type ProfileRow = {
 };
 
 /* -------------------- Styled UI -------------------- */
-const Page = styled.div`
-  min-height: 100vh;
+const SubscriptionsPage = styled.div`
+  min-height: 100dvh; /* better on mobile than 100vh */
+  display: flex; /* <-- add */
+  flex-direction: column; /* <-- add */
   background: ${theme.colors.background};
+`;
+
+const Page = styled.div`
   padding: 28px 16px 64px;
+  flex: 1 0 auto; /* <-- add so content expands, pushing footer down */
 `;
 
 const Container = styled.div`
@@ -444,130 +451,133 @@ export default function Subscriptions() {
     maxContacts != null && contactsCount / maxContacts >= 0.9 ? "warn" : "ok";
 
   return (
-    <Page>
-      <BackButtonWrapper>
-        <NexaButton
-          noPadding
-          variant="ghost"
-          onClick={() => router.push("/dashboard")}
-          aria-label="Back to Dashboard"
-        >
-          Back to Dashboard
-        </NexaButton>
-      </BackButtonWrapper>
-      <Container>
-        <HeaderRow>
-          <div>
-            <H1>Subscriptions</H1>
-            <Subtle>Manage your plan, usage, and billing.</Subtle>
-          </div>
-        </HeaderRow>
-
-        <Summary>
-          <SummaryCard aria-live="polite">
+    <SubscriptionsPage>
+      <Page>
+        <BackButtonWrapper>
+          <NexaButton
+            noPadding
+            variant="ghost"
+            onClick={() => router.push("/dashboard")}
+            aria-label="Back to Dashboard"
+          >
+            Back to Dashboard
+          </NexaButton>
+        </BackButtonWrapper>
+        <Container>
+          <HeaderRow>
             <div>
-              <SummaryTitle>Contacts usage</SummaryTitle>
-              <UsageBarWrap>
-                <UsageBar $pct={usagePct} />
-              </UsageBarWrap>
-              <UsageMeta>{usageCopy}</UsageMeta>
+              <H1>Subscriptions</H1>
+              <Subtle>Manage your plan, usage, and billing.</Subtle>
             </div>
-            <Badge $tone={usageTone}>
-              {usageTone === "warn" ? "Near limit" : "Healthy"}
-            </Badge>
-          </SummaryCard>
+          </HeaderRow>
 
-          <SummaryCard>
-            <div>
-              <SummaryTitle>Current plan</SummaryTitle>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                {currentTier?.name ?? "—"}
+          <Summary>
+            <SummaryCard aria-live="polite">
+              <div>
+                <SummaryTitle>Contacts usage</SummaryTitle>
+                <UsageBarWrap>
+                  <UsageBar $pct={usagePct} />
+                </UsageBarWrap>
+                <UsageMeta>{usageCopy}</UsageMeta>
               </div>
-              <UsageMeta>
-                {currentTier?.max_contacts == null
-                  ? "Unlimited contacts"
-                  : `${currentTier?.max_contacts} contact cap`}
-              </UsageMeta>
-            </div>
-            {currentTier && <Badge $tone="accent">Active</Badge>}
-          </SummaryCard>
-        </Summary>
+              <Badge $tone={usageTone}>
+                {usageTone === "warn" ? "Near limit" : "Healthy"}
+              </Badge>
+            </SummaryCard>
 
-        <TierGrid>
-          {tiers.map((tier) => {
-            const isCurrent = tier.id === currentTier?.id;
-            const wouldExceed =
-              tier.max_contacts != null && contactsCount > tier.max_contacts;
-            const priceText = `${formatPrice(tier.price)} `;
-
-            return (
-              <TierCard key={tier.id} $active={isCurrent}>
-                {isCurrent && <Ribbon>Current</Ribbon>}
-                <Title>{tier.name}</Title>
-                <Price>
-                  {priceText}
-                  <small>/mo</small>
-                </Price>
-
-                <Desc title={tier.description ?? undefined}>
-                  {tier.max_contacts == null
+            <SummaryCard>
+              <div>
+                <SummaryTitle>Current plan</SummaryTitle>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                  {currentTier?.name ?? "—"}
+                </div>
+                <UsageMeta>
+                  {currentTier?.max_contacts == null
                     ? "Unlimited contacts"
-                    : `${tier.max_contacts.toLocaleString()} contacts`}
-                  {tier.description ? ` • ${tier.description}` : ""}
-                </Desc>
+                    : `${currentTier?.max_contacts} contact cap`}
+                </UsageMeta>
+              </div>
+              {currentTier && <Badge $tone="accent">Active</Badge>}
+            </SummaryCard>
+          </Summary>
 
-                <FeatureList>
-                  <Feature>
+          <TierGrid>
+            {tiers.map((tier) => {
+              const isCurrent = tier.id === currentTier?.id;
+              const wouldExceed =
+                tier.max_contacts != null && contactsCount > tier.max_contacts;
+              const priceText = `${formatPrice(tier.price)} `;
+
+              return (
+                <TierCard key={tier.id} $active={isCurrent}>
+                  {isCurrent && <Ribbon>Current</Ribbon>}
+                  <Title>{tier.name}</Title>
+                  <Price>
+                    {priceText}
+                    <small>/mo</small>
+                  </Price>
+
+                  <Desc title={tier.description ?? undefined}>
                     {tier.max_contacts == null
-                      ? "No contact limits"
-                      : `${tier.max_contacts.toLocaleString()} total contacts`}
-                  </Feature>
-                  <Feature>
-                    {tier.price && tier.price > 0
-                      ? "Priority support"
-                      : "Community support"}
-                  </Feature>
-                  <Feature>Plan switching anytime</Feature>
-                </FeatureList>
+                      ? "Unlimited contacts"
+                      : `${tier.max_contacts.toLocaleString()} contacts`}
+                    {tier.description ? ` • ${tier.description}` : ""}
+                  </Desc>
 
-                <ButtonRow>
-                  <Button
-                    onClick={() => changePlan(tier)}
-                    disabled={saving || isCurrent || wouldExceed}
-                    aria-disabled={saving || isCurrent || wouldExceed}
-                    title={
-                      isCurrent
-                        ? "You’re already on this plan"
+                  <FeatureList>
+                    <Feature>
+                      {tier.max_contacts == null
+                        ? "No contact limits"
+                        : `${tier.max_contacts.toLocaleString()} total contacts`}
+                    </Feature>
+                    <Feature>
+                      {tier.price && tier.price > 0
+                        ? "Priority support"
+                        : "Community support"}
+                    </Feature>
+                    <Feature>Plan switching anytime</Feature>
+                  </FeatureList>
+
+                  <ButtonRow>
+                    <Button
+                      onClick={() => changePlan(tier)}
+                      disabled={saving || isCurrent || wouldExceed}
+                      aria-disabled={saving || isCurrent || wouldExceed}
+                      title={
+                        isCurrent
+                          ? "You’re already on this plan"
+                          : wouldExceed
+                          ? "You have more contacts than this plan allows"
+                          : "Switch to this plan"
+                      }
+                    >
+                      {isCurrent
+                        ? "Current plan"
                         : wouldExceed
-                        ? "You have more contacts than this plan allows"
-                        : "Switch to this plan"
-                    }
-                  >
-                    {isCurrent
-                      ? "Current plan"
-                      : wouldExceed
-                      ? "Over contact limit"
-                      : "Choose plan"}
-                  </Button>
+                        ? "Over contact limit"
+                        : "Choose plan"}
+                    </Button>
 
-                  <Button
-                    $variant="ghost"
-                    onClick={() =>
-                      alert(
-                        "Billing portal coming soon (Stripe). This page updates your in-app plan only."
-                      )
-                    }
-                    disabled={saving}
-                    title="View or manage billing"
-                  >
-                    Billing
-                  </Button>
-                </ButtonRow>
-              </TierCard>
-            );
-          })}
-        </TierGrid>
-      </Container>
-    </Page>
+                    <Button
+                      $variant="ghost"
+                      onClick={() =>
+                        alert(
+                          "Billing portal coming soon (Stripe). This page updates your in-app plan only."
+                        )
+                      }
+                      disabled={saving}
+                      title="View or manage billing"
+                    >
+                      Billing
+                    </Button>
+                  </ButtonRow>
+                </TierCard>
+              );
+            })}
+          </TierGrid>
+        </Container>
+      </Page>
+      <NexaFooter></NexaFooter>
+    </SubscriptionsPage>
   );
 }

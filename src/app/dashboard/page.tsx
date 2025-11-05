@@ -162,10 +162,12 @@ const RightColumn = styled.div`
   }
 `;
 
+// replace your StyledDashboardPage
 const StyledDashboardPage = styled.div`
-  position: relative;
+  min-height: 100dvh; /* fill the screen, handles mobile browser UI well */
+  display: flex;
+  flex-direction: column;
   background-color: ${theme.colors.background};
-  height: 100vh;
 `;
 
 const StyledDashboardHeader = styled.header`
@@ -293,6 +295,7 @@ const StyledDashboardHeaderButton = styled.button`
 `;
 
 const StyledDashboardInfoSection = styled.section`
+  flex: 1 0 auto;
   display: flex;
   justify-content: center;
   align-items: start;
@@ -1181,7 +1184,7 @@ export default function DashboardPage() {
               router.replace("/subscriptions");
             }}
           >
-            <img src="setting.png" alt="" />
+            <img src="subscription.png" alt="" />
             <p>subscriptions</p>
           </StyledDashboardHeaderButton>
           <StyledDashboardHeaderButton
@@ -1759,6 +1762,7 @@ export default function DashboardPage() {
           onClose={closeNotice}
         />
       )}
+      <NexaFooter></NexaFooter>
     </StyledDashboardPage>
   );
 }
