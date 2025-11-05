@@ -790,7 +790,7 @@ export default function Settings() {
                 marginBottom: 6,
               }}
             >
-              Type <strong>"delete account"</strong> to confirm
+              Type <strong>&quot;delete account&quot;</strong> to confirm
             </label>
             <NexaInput
               id="confirm_text"
