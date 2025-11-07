@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef } from "react";
 import styled, { css } from "styled-components";
 import { theme } from "../../../styles/theme";
 
-type NoticeType = "success" | "error" | "info";
+type NoticeType = "success" | "error" | "info" | "warning";
 type Action = {
   label: string;
   onClick: () => void;
@@ -51,21 +51,52 @@ const Card = styled.div<{ $type: NoticeType }>`
   ${(p) =>
     p.$type === "success"
       ? css`
-          box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+          box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15); /* green */
         `
       : p.$type === "error"
       ? css`
-          box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+          box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15); /* red */
+        `
+      : p.$type === "warning"
+      ? css`
+          box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.36); /* amber */
+          border-color: rgba(245, 11, 11, 0.35);
         `
       : css`
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); /* blue/info */
         `}
 `;
 
-const Title = styled.h3`
+const Title = styled.h3<{ $type?: NoticeType }>`
   margin: 0;
   font-size: 18px;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  span.badge {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    ${(p) =>
+      p.$type === "warning"
+        ? css`
+            background: #f50b0bff;
+          ` // amber
+        : p.$type === "error"
+        ? css`
+            background: #ef4444;
+          `
+        : p.$type === "success"
+        ? css`
+            background: #10b981;
+          `
+        : css`
+            background: #3b82f6;
+          `}
+  }
 `;
 
 const Body = styled.div`
@@ -86,7 +117,10 @@ const Actions = styled.div`
   flex-wrap: wrap;
 `;
 
-const Btn = styled.button<{ $variant?: "primary" | "ghost" }>`
+const Btn = styled.button<{
+  $variant?: "primary" | "ghost";
+  $type?: NoticeType;
+}>`
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 14px;
@@ -108,12 +142,23 @@ const Btn = styled.button<{ $variant?: "primary" | "ghost" }>`
           }
         `
       : css`
-          background: ${theme.colors.accent};
-          color: ${theme.colors.text || "#111"};
-          border: 1px solid ${theme.colors.accent};
-          &:hover {
-            filter: brightness(1.07);
-          }
+          ${p.$type === "warning"
+            ? css`
+                background: #dc2626; /* red-600 */
+                border: 1px solid #b91c1c;
+                color: white;
+                &:hover {
+                  background: #b91c1c;
+                }
+              `
+            : css`
+                background: ${theme.colors.accent};
+                border: 1px solid ${theme.colors.accent};
+                color: ${theme.colors.text || "#111"};
+                &:hover {
+                  filter: brightness(1.07);
+                }
+              `}
           &:disabled {
             opacity: 0.6;
             cursor: not-allowed;
@@ -199,7 +244,11 @@ export function NexaPopup({
           e.stopPropagation();
         }}
       >
-        <Title id={titleId}>{title}</Title>
+        <Title id={titleId} $type={type}>
+          <span className="badge" aria-hidden="true" />
+          {title}
+        </Title>
+
         <Body id={bodyId}>
           {message ? <p>{message}</p> : null}
           {children}
@@ -210,15 +259,13 @@ export function NexaPopup({
               key={i}
               onClick={a.onClick}
               $variant={a.variant}
+              $type={type} // 👈 add this
               disabled={a.disabled}
               autoFocus={a.autoFocus}
             >
               {a.label}
             </Btn>
           ))}
-          <Btn onClick={onClose} $variant="ghost">
-            Close
-          </Btn>
         </Actions>
       </Card>
     </Backdrop>

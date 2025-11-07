@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/browserClient";
 import styled, { css } from "styled-components";
 import {
   fetchProfile,
+  getOrCreatePublicToken,
   getSessionUser,
   upsertProfile,
   validatePwMatch,
@@ -20,6 +21,7 @@ import { NexaButton } from "@/components/NexaButton/page";
 import { LoadingScreen } from "@/components/LoadingScreen/page";
 import NexaFooter from "@/components/NexaFooter/page";
 import { NexaPopup } from "@/components/NexaPopup/page"; // ⟵ ensure this exists
+import { generateToken, rotatePublicToken } from "@/utils/token";
 
 // Types
 type TabKey = "profile" | "privacy" | "notifications" | "account";
@@ -298,6 +300,13 @@ export default function Settings() {
     msg: string;
   } | null>(null);
 
+  // REMAKE QR modal state
+  const [remakeOpen, setRemakeOpen] = useState(false);
+  const [remakeBusy, setRemakeBusy] = useState(false);
+  const [remakeError, setRemakeError] = useState<string | null>(null);
+  const [ackOldStops, setAckOldStops] = useState(false);
+  const [ackReprint, setAckReprint] = useState(false);
+
   // DELETE ACCOUNT modal state
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePw, setDeletePw] = useState("");
@@ -449,6 +458,35 @@ export default function Settings() {
       setDeleteError(getErrorMessage(e));
     } finally {
       setDeleteBusy(false);
+    }
+  }
+
+  const RegenerateQRCode = async () => {
+    setRemakeError(null);
+    setAckOldStops(false);
+    setAckReprint(false);
+    setRemakeOpen(true);
+  };
+
+  async function confirmRemakeQRCode() {
+    if (!userId) return;
+    setRemakeBusy(true);
+    setRemakeError(null);
+    try {
+      const newToken = await rotatePublicToken(supa, userId, generateToken);
+      // optional: refetch anything that shows the current QR / token
+      setBanner({
+        type: "success",
+        msg: "New QR code generated. Your previous QR is now inactive.",
+      });
+      setRemakeOpen(false);
+      // TODO: trigger UI that re-renders the QR image for the new token
+      // e.g., router.refresh() or setSomeTokenState(newToken)
+      console.log("new token:", newToken);
+    } catch (err) {
+      setRemakeError(getErrorMessage(err));
+    } finally {
+      setRemakeBusy(false);
     }
   }
 
@@ -703,6 +741,28 @@ export default function Settings() {
                     Export
                   </NexaButton>
                 </Row>
+                <Field>
+                  <span>Generate new QR code</span>
+                  <Helper>
+                    Create a brand new QR code (new link).{" "}
+                    <strong>
+                      Your current QR will stop working immediately
+                    </strong>{" "}
+                    and anyone who scans it will see a “Code revoked” message.
+                    You’ll need to update any printed cards, wristbands, or
+                    shared links.
+                  </Helper>
+                </Field>
+                <Row>
+                  <NexaButton
+                    variant="primary"
+                    type="button"
+                    onClick={RegenerateQRCode}
+                    aria-label="Generate a new QR code and revoke the current one"
+                  >
+                    Remake QR Code
+                  </NexaButton>
+                </Row>
 
                 <Field>
                   <span>Danger zone</span>
@@ -732,11 +792,82 @@ export default function Settings() {
         </Content>
       </StyledSettingsPageSettings>
 
+      {/* --- NEW: Remake QR Modal --- */}
+      {remakeOpen && (
+        <NexaPopup
+          open={remakeOpen}
+          type="warning"
+          title="Remake your QR code?"
+          message="This creates a new QR link and disables your current one."
+          disableBackdropClose={remakeBusy}
+          disableEscClose={remakeBusy}
+          onClose={() => !remakeBusy && setRemakeOpen(false)}
+          actions={[
+            {
+              label: remakeBusy ? "Working…" : "Remake QR",
+              onClick: confirmRemakeQRCode,
+              variant: "primary",
+              disabled: remakeBusy || !ackOldStops || !ackReprint,
+              autoFocus: true,
+            },
+            {
+              label: "Cancel",
+              onClick: () => setRemakeOpen(false),
+              variant: "ghost",
+              disabled: remakeBusy,
+            },
+          ]}
+        >
+          <div style={{ marginTop: 8 }}>
+            <Checklist>
+              <CheckItem $ok={ackOldStops}>
+                <label
+                  style={{ display: "flex", gap: 8, alignItems: "center" }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={ackOldStops}
+                    onChange={(e) => setAckOldStops(e.target.checked)}
+                    disabled={remakeBusy}
+                  />
+                  I understand my current QR code will stop working immediately.
+                </label>
+              </CheckItem>
+              <CheckItem $ok={ackReprint}>
+                <label
+                  style={{ display: "flex", gap: 8, alignItems: "center" }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={ackReprint}
+                    onChange={(e) => setAckReprint(e.target.checked)}
+                    disabled={remakeBusy}
+                  />
+                  I will update any printed items or shared links with the new
+                  QR.
+                </label>
+              </CheckItem>
+            </Checklist>
+
+            <Helper style={{ marginTop: 10 }}>
+              Your saved profile information does not change. Only the QR link
+              is rotated. Scans of the old code will show “Code revoked.”
+            </Helper>
+
+            {remakeError ? (
+              <p style={{ color: "#b91c1c", fontSize: 12, marginTop: 8 }}>
+                {remakeError}
+              </p>
+            ) : null}
+          </div>
+        </NexaPopup>
+      )}
+
       {/* --- NEW: Delete Account Modal --- */}
       {deleteOpen && (
         <NexaPopup
           open={deleteOpen}
-          type="error"
+          type="warning"
           title="Delete your account?"
           message="This will permanently remove your account and all associated data. Please confirm below."
           disableBackdropClose={deleteBusy}

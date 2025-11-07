@@ -293,7 +293,9 @@ export default function QRPublicPage({
       <Stack>
         <NexaLogo mode="dark"></NexaLogo>
         {loading && <Muted>Loading…</Muted>}
-        {!loading && notFound && <Muted>No active contacts found.</Muted>}
+        {!loading && notFound && (
+          <Muted>This QR code is no longer active</Muted>
+        )}
         {!loading && !notFound && priorityContacts.length > 0 && (
           <>
             <GroupTitle>Priority contacts</GroupTitle>
