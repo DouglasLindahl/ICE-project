@@ -18,7 +18,6 @@ type Tier = {
   max_contacts: number | null; // null = unlimited
   description?: string | null;
   is_active?: boolean | null;
-  // can_buy is used in your query; add for TS completeness
   can_buy?: boolean | null;
 };
 
@@ -210,6 +209,13 @@ const Price = styled.div`
   }
 `;
 
+const DiscountNote = styled.div`
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: ${theme.colors.accent};
+`;
+
 const Desc = styled.p`
   margin: 8px 0 12px 0;
   opacity: 0.85;
@@ -271,13 +277,13 @@ const Button = styled.button<{ $variant?: "primary" | "ghost" }>`
     cursor: not-allowed;
   }
 `;
+
 const ToggleRow = styled.div`
   display: flex;
   justify-content: center;
   margin: 8px 0 20px;
   width: 100%;
 
-  /* keep it tight on mobile */
   @media (max-width: 940px) {
     margin: 4px 0 16px;
   }
@@ -290,6 +296,7 @@ const BillingToggle = styled.div`
   border-radius: 999px;
   overflow: hidden;
   width: 100%;
+  max-width: 380px;
 
   button {
     width: 100%;
@@ -506,6 +513,25 @@ export default function Subscriptions() {
     billing === "monthly" ? "price_monthly" : "price_yearly";
   const priceSuffix = billing === "monthly" ? "/mo" : "/yr";
 
+  // helper to compute discount when yearly is selected
+  function computeDiscountPct(tier: Tier): number | null {
+    const m = tier.price_monthly ?? null;
+    const y = tier.price_yearly ?? null;
+    if (
+      billing !== "yearly" ||
+      m == null ||
+      y == null ||
+      isNaN(m) ||
+      isNaN(y) ||
+      m <= 0 ||
+      y <= 0
+    )
+      return null;
+    // discount relative to 12 months
+    const pct = Math.round((1 - y / (m * 12)) * 100);
+    return isFinite(pct) ? pct : null;
+  }
+
   return (
     <SubscriptionsPage>
       <Page>
@@ -525,8 +551,6 @@ export default function Subscriptions() {
               <H1>Subscriptions</H1>
               <Subtle>Manage your plan, usage, and billing.</Subtle>
             </div>
-
-            {/* New: monthly / yearly toggle */}
           </HeaderRow>
 
           <Summary>
@@ -558,6 +582,8 @@ export default function Subscriptions() {
               {currentTier && <Badge $tone="accent">Active</Badge>}
             </SummaryCard>
           </Summary>
+
+          {/* Centered billing toggle */}
           <ToggleRow>
             <BillingToggle role="tablist" aria-label="Billing cycle">
               <button
@@ -595,6 +621,8 @@ export default function Subscriptions() {
                 billing === "yearly" &&
                 (tier.price_yearly == null || isNaN(tier.price_yearly));
 
+              const discountPct = computeDiscountPct(tier);
+
               return (
                 <TierCard key={tier.id} $active={isCurrent}>
                   {isCurrent && <Ribbon>Current</Ribbon>}
@@ -603,6 +631,15 @@ export default function Subscriptions() {
                     {priceText}
                     <small>{priceSuffix}</small>
                   </Price>
+
+                  {/* Yearly discount note */}
+                  {billing === "yearly" && (
+                    <DiscountNote aria-live="polite">
+                      {discountPct && discountPct > 0
+                        ? `${discountPct}% off vs. monthly`
+                        : "Billed yearly"}
+                    </DiscountNote>
+                  )}
 
                   <Desc title={tier.description ?? undefined}>
                     {tier.max_contacts == null
@@ -676,6 +713,48 @@ export default function Subscriptions() {
                 </TierCard>
               );
             })}
+
+            {/* --------- Custom plan card (always visible) --------- */}
+            <TierCard>
+              <Ribbon>Custom</Ribbon>
+              <Title>Custom / Enterprise</Title>
+              <Price>Let’s talk</Price>
+              {billing === "yearly" && (
+                <DiscountNote>Volume & annual discounts available</DiscountNote>
+              )}
+              <Desc>
+                Need higher limits, SSO, or bespoke features? We’ll craft a plan
+                for your team.
+              </Desc>
+
+              <FeatureList>
+                <Feature>Flexible contact limits</Feature>
+                <Feature>Priority support & SLA</Feature>
+                <Feature>Custom onboarding</Feature>
+              </FeatureList>
+
+              <ButtonRow>
+                <Button
+                  onClick={() =>
+                    (window.location.href =
+                      "mailto:support@nexaqr.com?subject=Custom%20plan%20inquiry&body=Hi%20Nexa%20team%2C%0A%0AWe%27re%20interested%20in%20a%20custom%20plan.%20Here%27s%20some%20context%3A%0A-%20Team%20size%3A%0A-%20Estimated%20contacts%3A%0A-%20Requirements%3A%0A%0AThanks!")
+                  }
+                  title="Contact us about a custom plan"
+                >
+                  Contact us
+                </Button>
+                <Button
+                  $variant="ghost"
+                  onClick={() =>
+                    (window.location.href =
+                      "mailto:support@nexaqr.com?subject=Custom%20plan%20question")
+                  }
+                  title="Email support@nexaqr.com"
+                >
+                  Email support
+                </Button>
+              </ButtonRow>
+            </TierCard>
           </TierGrid>
         </Container>
       </Page>
