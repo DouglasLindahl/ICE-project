@@ -939,7 +939,6 @@ export default function DashboardPage() {
       const rows = await loadContacts(supa);
       if (!mounted) return;
       setContacts(rows);
-      console.log(rows);
 
       const cap = await fetchMaxContacts(supa, user.id);
       if (!mounted) return;
@@ -1301,7 +1300,6 @@ export default function DashboardPage() {
 
                 <StyledDashboardContactsSectionAddContactButton
                   onClick={() => {
-                    console.log(remaining);
                     if (remaining <= 0) {
                       notify({
                         type: "error",

@@ -482,7 +482,6 @@ export default function Settings() {
       setRemakeOpen(false);
       // TODO: trigger UI that re-renders the QR image for the new token
       // e.g., router.refresh() or setSomeTokenState(newToken)
-      console.log("new token:", newToken);
     } catch (err) {
       setRemakeError(getErrorMessage(err));
     } finally {
