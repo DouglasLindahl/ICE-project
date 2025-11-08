@@ -13,10 +13,13 @@ import NexaFooter from "@/components/NexaFooter/page";
 type Tier = {
   id: string;
   name: string;
-  price: number | null;
+  price_monthly: number | null;
+  price_yearly: number | null;
   max_contacts: number | null; // null = unlimited
   description?: string | null;
   is_active?: boolean | null;
+  // can_buy is used in your query; add for TS completeness
+  can_buy?: boolean | null;
 };
 
 type ProfileRow = {
@@ -24,17 +27,19 @@ type ProfileRow = {
   subscription_tier_id: string | null;
 };
 
+type BillingCycle = "monthly" | "yearly";
+
 /* -------------------- Styled UI -------------------- */
 const SubscriptionsPage = styled.div`
   min-height: 100dvh; /* better on mobile than 100vh */
-  display: flex; /* <-- add */
-  flex-direction: column; /* <-- add */
+  display: flex;
+  flex-direction: column;
   background: ${theme.colors.background};
 `;
 
 const Page = styled.div`
   padding: 28px 16px 64px;
-  flex: 1 0 auto; /* <-- add so content expands, pushing footer down */
+  flex: 1 0 auto;
 `;
 
 const Container = styled.div`
@@ -266,6 +271,41 @@ const Button = styled.button<{ $variant?: "primary" | "ghost" }>`
     cursor: not-allowed;
   }
 `;
+const ToggleRow = styled.div`
+  display: flex;
+  justify-content: center;
+  margin: 8px 0 20px;
+  width: 100%;
+
+  /* keep it tight on mobile */
+  @media (max-width: 940px) {
+    margin: 4px 0 16px;
+  }
+`;
+
+const BillingToggle = styled.div`
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid ${theme.colors.border};
+  border-radius: 999px;
+  overflow: hidden;
+  width: 100%;
+
+  button {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  button[aria-pressed="true"] {
+    background: ${theme.colors.accent};
+    color: #fff;
+  }
+`;
 
 /* -------------- Loading skeletons -------------- */
 const shimmer = keyframes`
@@ -301,6 +341,7 @@ export default function Subscriptions() {
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [contactsCount, setContactsCount] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
+  const [billing, setBilling] = useState<BillingCycle>("monthly");
 
   const currentTier = useMemo(() => {
     if (!profile?.subscription_tier_id) return null;
@@ -314,7 +355,7 @@ export default function Subscriptions() {
   }, [contactsCount, maxContacts]);
 
   function formatPrice(price: number | null) {
-    if (price == null || isNaN(price)) return "$0";
+    if (price == null || isNaN(price)) return "—";
     try {
       return new Intl.NumberFormat(undefined, {
         style: "currency",
@@ -339,10 +380,12 @@ export default function Subscriptions() {
         const [tiersRes, profileRes, contactsRes] = await Promise.all([
           supa
             .from("subscription_tiers")
-            .select("id,name,price,max_contacts,description,is_active,can_buy")
+            .select(
+              "id,name,price_monthly,price_yearly,max_contacts,description,is_active,can_buy"
+            )
             .eq("is_active", true)
             .eq("can_buy", true)
-            .order("price", { ascending: true }),
+            .order("price_monthly", { ascending: true }),
           supa
             .from("profiles")
             .select("user_id,subscription_tier_id")
@@ -382,6 +425,15 @@ export default function Subscriptions() {
             contactsCount - tier.max_contacts === 1 ? "" : "s"
           } or pick a higher tier.`
       );
+      return;
+    }
+
+    // In case Yearly is selected but a tier has no yearly price, block it
+    if (
+      billing === "yearly" &&
+      (tier.price_yearly == null || isNaN(tier.price_yearly))
+    ) {
+      alert(`"${tier.name}" doesn't have a yearly price yet.`);
       return;
     }
 
@@ -450,6 +502,10 @@ export default function Subscriptions() {
   const usageTone: "ok" | "warn" =
     maxContacts != null && contactsCount / maxContacts >= 0.9 ? "warn" : "ok";
 
+  const priceKey: keyof Tier =
+    billing === "monthly" ? "price_monthly" : "price_yearly";
+  const priceSuffix = billing === "monthly" ? "/mo" : "/yr";
+
   return (
     <SubscriptionsPage>
       <Page>
@@ -469,6 +525,8 @@ export default function Subscriptions() {
               <H1>Subscriptions</H1>
               <Subtle>Manage your plan, usage, and billing.</Subtle>
             </div>
+
+            {/* New: monthly / yearly toggle */}
           </HeaderRow>
 
           <Summary>
@@ -500,13 +558,42 @@ export default function Subscriptions() {
               {currentTier && <Badge $tone="accent">Active</Badge>}
             </SummaryCard>
           </Summary>
+          <ToggleRow>
+            <BillingToggle role="tablist" aria-label="Billing cycle">
+              <button
+                type="button"
+                aria-pressed={billing === "monthly"}
+                role="tab"
+                onClick={() => setBilling("monthly")}
+              >
+                Monthly
+              </button>
+              <button
+                type="button"
+                aria-pressed={billing === "yearly"}
+                role="tab"
+                onClick={() => setBilling("yearly")}
+              >
+                Yearly
+              </button>
+            </BillingToggle>
+          </ToggleRow>
 
           <TierGrid>
             {tiers.map((tier) => {
               const isCurrent = tier.id === currentTier?.id;
               const wouldExceed =
                 tier.max_contacts != null && contactsCount > tier.max_contacts;
-              const priceText = `${formatPrice(tier.price)} `;
+
+              const priceVal =
+                typeof tier[priceKey] === "number"
+                  ? (tier[priceKey] as number)
+                  : null;
+
+              const priceText = `${formatPrice(priceVal)} `;
+              const priceUnavailable =
+                billing === "yearly" &&
+                (tier.price_yearly == null || isNaN(tier.price_yearly));
 
               return (
                 <TierCard key={tier.id} $active={isCurrent}>
@@ -514,7 +601,7 @@ export default function Subscriptions() {
                   <Title>{tier.name}</Title>
                   <Price>
                     {priceText}
-                    <small>/mo</small>
+                    <small>{priceSuffix}</small>
                   </Price>
 
                   <Desc title={tier.description ?? undefined}>
@@ -531,9 +618,16 @@ export default function Subscriptions() {
                         : `${tier.max_contacts.toLocaleString()} total contacts`}
                     </Feature>
                     <Feature>
-                      {tier.price && tier.price > 0
-                        ? "Priority support"
-                        : "Community support"}
+                      {(() => {
+                        // show “Priority support” if the selected billing price > 0
+                        const p =
+                          billing === "monthly"
+                            ? tier.price_monthly
+                            : tier.price_yearly;
+                        return p && p > 0
+                          ? "Priority support"
+                          : "Community support";
+                      })()}
                     </Feature>
                     <Feature>Plan switching anytime</Feature>
                   </FeatureList>
@@ -541,13 +635,19 @@ export default function Subscriptions() {
                   <ButtonRow>
                     <Button
                       onClick={() => changePlan(tier)}
-                      disabled={saving || isCurrent || wouldExceed}
-                      aria-disabled={saving || isCurrent || wouldExceed}
+                      disabled={
+                        saving || isCurrent || wouldExceed || priceUnavailable
+                      }
+                      aria-disabled={
+                        saving || isCurrent || wouldExceed || priceUnavailable
+                      }
                       title={
                         isCurrent
                           ? "You’re already on this plan"
                           : wouldExceed
                           ? "You have more contacts than this plan allows"
+                          : priceUnavailable
+                          ? "Yearly price not available for this plan"
                           : "Switch to this plan"
                       }
                     >
@@ -555,6 +655,8 @@ export default function Subscriptions() {
                         ? "Current plan"
                         : wouldExceed
                         ? "Over contact limit"
+                        : priceUnavailable
+                        ? "Unavailable (Yearly)"
                         : "Choose plan"}
                     </Button>
 
