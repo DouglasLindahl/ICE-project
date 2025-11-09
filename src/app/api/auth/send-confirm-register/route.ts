@@ -88,7 +88,9 @@ export async function POST(req: Request): Promise<NextResponse> {
         type: "signup",
         email,
         password,
-        options: { redirectTo: `${origin}/callback` },
+        options: {
+          redirectTo: `${origin}/callback`, // <— always matches where the user is
+        },
       });
 
     if (linkErr || !linkData?.properties?.action_link) {

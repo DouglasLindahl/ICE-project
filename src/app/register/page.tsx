@@ -383,18 +383,19 @@ export default function Register() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: "signup", // or "invite" if you keep signups disabled
+          type: "signup",
           email,
-          password, // REQUIRED for "signup"
+          password,
           name: fullName,
-          phone: phone,
+          phone,
           redirectTo,
         }),
       });
 
+      const j = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j?.error || "Failed to send confirmation email");
+        console.error("register error:", j); // <-- will show actual error details
+        throw new Error(j?.error || `Failed (${res.status})`);
       }
 
       // Tell the user to check inbox; session won’t exist until they click the link
