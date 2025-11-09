@@ -82,14 +82,13 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
 
     // 4️⃣ Generate confirmation link
+    const origin = new URL(req.url).origin;
     const { data: linkData, error: linkErr } =
       await supabase.auth.admin.generateLink({
         type: "signup",
         email,
         password,
-        options: {
-          redirectTo: `${process.env.APP_URL}/callback`,
-        },
+        options: { redirectTo: `${origin}/callback` },
       });
 
     if (linkErr || !linkData?.properties?.action_link) {
