@@ -400,6 +400,10 @@ const StyledDashboardContactsSectionAddContactButton = styled.button`
   border-radius: 10px;
   font-size: 14px;
 
+  &[data-disabled="true"] {
+    opacity: 0.55;
+  }
+
   @media (max-width: 480px) {
     font-size: 12px;
     padding: 6px 10px;
@@ -849,7 +853,7 @@ export default function DashboardPage() {
     if (maxContacts == null) return Infinity; // testers/unlimited
     return Math.max(0, maxContacts - contactsCount);
   }, [maxContacts, contactsCount]);
-
+  const atLimit = remaining <= 0;
   const validatePhoneByCountry = (v: string) => {
     if (!v) return "Phone is required.";
     const p = toE164WithCountry(v, addCountry);
@@ -968,13 +972,7 @@ export default function DashboardPage() {
   async function addContact(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (maxContacts !== null && contacts.length >= maxContacts) {
-      notify({
-        type: "error",
-        title: "Contact limit reached",
-        message: `Your plan allows ${maxContacts} contact${
-          maxContacts === 1 ? "" : "s"
-        }. Delete one or upgrade to add more.`,
-      });
+      promptUpgrade();
       return;
     }
 
@@ -1018,6 +1016,32 @@ export default function DashboardPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+  function promptUpgrade() {
+    const plural = maxContacts === 1 ? "" : "s";
+    notify({
+      type: "error",
+      title: "Contact limit reached",
+      message:
+        maxContacts == null
+          ? "Unlimited plan — this shouldn’t happen."
+          : `Your plan allows ${maxContacts} contact${plural}. Delete one or upgrade to add more.`,
+      actions: [
+        {
+          label: "Upgrade plan",
+          onClick: () => router.push("/subscriptions"),
+          variant: "primary",
+        },
+        {
+          label: "Manage contacts",
+          onClick: () => {
+            setShowAdd(false);
+            closeNotice();
+          },
+          variant: "ghost",
+        },
+      ],
+    });
   }
 
   /* ========== DELETE ========== */
@@ -1300,24 +1324,15 @@ export default function DashboardPage() {
 
                 <StyledDashboardContactsSectionAddContactButton
                   onClick={() => {
-                    if (remaining <= 0) {
-                      notify({
-                        type: "error",
-                        title: "Contact limit reached",
-                        message:
-                          maxContacts == null
-                            ? "Unlimited plan — this shouldn’t happen."
-                            : `Your plan allows ${maxContacts} contact${
-                                maxContacts === 1 ? "" : "s"
-                              }. Delete one or upgrade to add more.`,
-                      });
+                    if (atLimit) {
+                      promptUpgrade(); // ← show NexaPopup
                       return;
                     }
                     setShowAdd(true);
                   }}
-                  disabled={remaining <= 0}
+                  data-disabled={atLimit}
                   title={
-                    remaining <= 0
+                    atLimit
                       ? "You’ve reached your plan’s contact limit"
                       : undefined
                   }

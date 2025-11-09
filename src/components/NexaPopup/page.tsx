@@ -55,12 +55,12 @@ const Card = styled.div<{ $type: NoticeType }>`
         `
       : p.$type === "error"
       ? css`
-          box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15); /* red */
+          box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.15); /* red */
         `
       : p.$type === "warning"
       ? css`
-          box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.36); /* amber */
-          border-color: rgba(245, 11, 11, 0.35);
+          box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.25);
+          border-color: rgba(251, 191, 36, 0.5);
         `
       : css`
           box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); /* blue/info */
@@ -83,7 +83,7 @@ const Title = styled.h3<{ $type?: NoticeType }>`
     ${(p) =>
       p.$type === "warning"
         ? css`
-            background: #f50b0bff;
+            background: #f59e0b;
           ` // amber
         : p.$type === "error"
         ? css`
