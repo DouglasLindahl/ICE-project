@@ -146,10 +146,10 @@ export async function POST(req: Request): Promise<NextResponse> {
   </body>
 </html>
 `;
-    const FROM = "NexaQR <support@nexaqr.com>";
+
     // 6️⃣ Send via Resend
     const result = await resend.emails.send({
-      from: FROM,
+      from: process.env.EMAIL_FROM ?? "NexaQR <support@nexaqr.com>",
       to: email,
       subject: "Confirm your NexaQR account",
       html,
