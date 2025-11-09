@@ -1,11 +1,32 @@
-// app/contact/page.tsx (example)
+"use client";
 import ContactForm from "@/components/ContactForm/page";
+import { NexaButton } from "@/components/NexaButton/page";
+import styled from "styled-components";
+import { useRouter } from "next/navigation";
+
+const StyledContactPage = styled.div`
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: start;
+  gap: 24px;
+`;
 
 export default function ContactPage() {
+  const router = useRouter();
   return (
-    <main className="px-6 py-10">
-      <h1 className="text-3xl font-bold mb-6">Contact NexaQR</h1>
+    <StyledContactPage className="px-6 py-10">
+      <NexaButton
+        noPadding
+        variant="ghost"
+        onClick={() => router.push("/dashboard")}
+        aria-label="Back to Dashboard"
+      >
+        Back to Dashboard
+      </NexaButton>
+
       <ContactForm />
-    </main>
+    </StyledContactPage>
   );
 }

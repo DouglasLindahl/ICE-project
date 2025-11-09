@@ -1204,6 +1204,14 @@ export default function DashboardPage() {
         <StyledDashboardHeaderRight>
           <StyledDashboardHeaderButton
             onClick={async () => {
+              router.replace("/contact");
+            }}
+          >
+            <img src="subscription.png" alt="" />
+            <p>Contact</p>
+          </StyledDashboardHeaderButton>
+          <StyledDashboardHeaderButton
+            onClick={async () => {
               router.replace("/subscriptions");
             }}
           >
@@ -1259,10 +1267,19 @@ export default function DashboardPage() {
             <MobileMenuItem
               role="menuitem"
               onClick={async () => {
+                router.replace("/contact");
+              }}
+            >
+              <img src="subscription.png" alt="" />
+              Contact
+            </MobileMenuItem>
+            <MobileMenuItem
+              role="menuitem"
+              onClick={async () => {
                 router.replace("/subscriptions");
               }}
             >
-              <img src="shopping-bag.png" alt="" />
+              <img src="subscription.png" alt="" />
               Subscriptions
             </MobileMenuItem>
             <MobileMenuItem

@@ -8,25 +8,9 @@ import { theme } from "../../../styles/theme";
 import { NexaButton } from "@/components/NexaButton/page";
 import { LoadingScreen } from "@/components/LoadingScreen/page";
 import NexaFooter from "@/components/NexaFooter/page";
+import { BillingCycle, ProfileRow, Tier } from "../utils";
 
 /* -------------------- Types -------------------- */
-type Tier = {
-  id: string;
-  name: string;
-  price_monthly: number | null;
-  price_yearly: number | null;
-  max_contacts: number | null; // null = unlimited
-  description?: string | null;
-  is_active?: boolean | null;
-  can_buy?: boolean | null;
-};
-
-type ProfileRow = {
-  user_id: string;
-  subscription_tier_id: string | null;
-};
-
-type BillingCycle = "monthly" | "yearly";
 
 /* -------------------- Styled UI -------------------- */
 const SubscriptionsPage = styled.div`

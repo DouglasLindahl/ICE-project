@@ -5,8 +5,9 @@ import { createClient } from "@/lib/supabase/browserClient";
 import styled, { css } from "styled-components";
 import {
   fetchProfile,
-  getOrCreatePublicToken,
   getSessionUser,
+  ProfileRow,
+  Tier,
   upsertProfile,
   validatePwMatch,
   validatePwStrong,
@@ -24,7 +25,12 @@ import { NexaPopup } from "@/components/NexaPopup/page"; // ⟵ ensure this exis
 import { generateToken, rotatePublicToken } from "@/utils/token";
 
 // Types
-type TabKey = "profile" | "privacy" | "notifications" | "account";
+type TabKey =
+  | "profile"
+  | "privacy"
+  | "notifications"
+  | "subscription"
+  | "account";
 
 // Breakpoints
 const BP = {
@@ -314,6 +320,16 @@ export default function Settings() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [confirmText, setConfirmText] = useState("");
 
+  const [error, setError] = useState<string | null>(null);
+  const [tiers, setTiers] = useState<Tier[]>([]);
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [contactsCount, setContactsCount] = useState<number>(0);
+
+  const currentTier = useMemo(() => {
+    if (!profile?.subscription_tier_id) return null;
+    return tiers.find((t) => t.id === profile.subscription_tier_id) ?? null;
+  }, [tiers, profile]);
+
   useEffect(() => {
     let mounted = true;
     let unsub: { unsubscribe: () => void } | null = null;
@@ -353,20 +369,74 @@ export default function Settings() {
       unsub?.unsubscribe?.();
     };
   }, [router, supa]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: session } = await supa.auth.getSession();
+        if (!session.session?.user) {
+          router.replace("/login");
+          return;
+        }
+        const userId = session.session.user.id;
+
+        const [tiersRes, profileRes, contactsRes] = await Promise.all([
+          supa
+            .from("subscription_tiers")
+            .select(
+              "id,name,price_monthly,price_yearly,max_contacts,description,is_active,can_buy"
+            )
+            .eq("is_active", true)
+            .eq("can_buy", true)
+            .order("price_monthly", { ascending: true }),
+          supa
+            .from("profiles")
+            .select("user_id,subscription_tier_id")
+            .eq("user_id", userId)
+            .single(),
+          supa
+            .from("contacts")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", userId),
+        ]);
+
+        if (tiersRes.error) throw tiersRes.error;
+        if (profileRes.error) throw profileRes.error;
+        if (contactsRes.error) throw contactsRes.error;
+
+        setTiers(tiersRes.data ?? []);
+        setProfile(profileRes.data ?? null);
+        setContactsCount(contactsRes.count ?? 0);
+      } catch (e: unknown) {
+        const msg =
+          e instanceof Error ? e.message : "Something went wrong loading data.";
+        setError(msg);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [router, supa]);
 
   const saveProfile = async () => {
-    const row = {
-      user_id: userId,
-      display_name: fullName,
-      phone_number: phone,
-      additional_information: additionalInfo,
-    };
-
-    try {
-      await upsertProfile(supa, row);
-      setBanner({ type: "success", msg: "Profile saved." });
-    } catch (err) {
-      setBanner({ type: "error", msg: getErrorMessage(err) });
+    if (userId && currentTier) {
+      const row = {
+        user_id: userId,
+        display_name: fullName,
+        phone_number: phone,
+        additional_information: additionalInfo,
+        subscription_tier_id: currentTier?.id,
+      };
+      console.log(currentTier?.id);
+      try {
+        await upsertProfile(supa, row);
+        setBanner({ type: "success", msg: "Profile saved." });
+      } catch (err) {
+        setBanner({ type: "error", msg: getErrorMessage(err) });
+      }
+    } else {
+      setBanner({
+        type: "error",
+        msg: "Something went wrong. Please try again later",
+      });
     }
   };
 
@@ -502,6 +572,7 @@ export default function Settings() {
         { key: "profile", label: "Profile" },
         { key: "privacy", label: "Privacy" },
         { key: "notifications", label: "Notifications" },
+        { key: "subscription", label: "Subscription" },
         { key: "account", label: "Account" },
       ] as { key: TabKey; label: string }[],
     []
@@ -719,7 +790,15 @@ export default function Settings() {
               {/* Add your preferences here */}
             </div>
           )}
-
+          {tab === "subscription" && (
+            <div>
+              <SectionTitle>Subscription</SectionTitle>
+              <p>{currentTier?.name}</p>
+              <p>{currentTier?.price_monthly}</p>
+              <p>{currentTier?.max_contacts}</p>
+              <p>{currentTier?.description}</p>
+            </div>
+          )}
           {tab === "account" && (
             <div>
               <SectionTitle>Account</SectionTitle>

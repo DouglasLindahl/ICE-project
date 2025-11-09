@@ -3,6 +3,18 @@
 
 import type { AuthError, SupabaseClient } from "@supabase/supabase-js";
 
+export type Tier = {
+  id: string;
+  name: string;
+  price_monthly: number | null;
+  price_yearly: number | null;
+  max_contacts: number | null; // null = unlimited
+  description?: string | null;
+  is_active?: boolean | null;
+  can_buy?: boolean | null;
+};
+
+export type BillingCycle = "monthly" | "yearly";
 // ----- Types you already use -----
 export type Contact = {
   id: string;
@@ -18,6 +30,7 @@ export type ProfileRow = {
   display_name?: string | null;
   phone_number?: string | null;
   additional_information?: string | null;
+  subscription_tier_id: string | null;
 };
 export async function fetchMaxContacts(
   supa: SupabaseClient,
