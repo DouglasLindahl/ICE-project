@@ -77,7 +77,7 @@ const NexaLogo: React.FC<NexaLogoProps> = ({
 }) => {
   return (
     <StyledLogo $mode={mode} $shimmer={shimmer}>
-      <img src="/shield-accent.png" alt="icon" />
+      <img src="logo/nexaqr-logo-mark-accent.png" alt="icon" />
       NexaQR
     </StyledLogo>
   );

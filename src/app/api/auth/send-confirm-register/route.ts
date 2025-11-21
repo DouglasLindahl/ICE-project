@@ -19,7 +19,11 @@ const Body = z.object({
 
 export async function POST(req: Request): Promise<NextResponse> {
   // ✅ Load logo for inline attachment
-  const logoPath = path.join(process.cwd(), "public", "shield-accent.png");
+  const logoPath = path.join(
+    process.cwd(),
+    "public",
+    "logo/nexaqr-logo-type-accent.png"
+  );
   const logoBuffer = await fs.readFile(logoPath);
 
   try {
@@ -155,7 +159,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       html,
       attachments: [
         {
-          filename: "shield-accent.png",
+          filename: "logo/nexaqr-logo-mark-accent.png",
           content: logoBuffer,
           contentType: "image/png",
           contentId: "logo",
