@@ -1204,34 +1204,6 @@ export default function DashboardPage() {
         <StyledDashboardHeaderRight>
           <StyledDashboardHeaderButton
             onClick={async () => {
-              router.replace("/contact");
-            }}
-          >
-            <img src="subscription.png" alt="" />
-            <p>Contact</p>
-          </StyledDashboardHeaderButton>
-          <StyledDashboardHeaderButton
-            onClick={async () => {
-              router.replace("/subscriptions");
-            }}
-          >
-            <img src="subscription.png" alt="" />
-            <p>subscriptions</p>
-          </StyledDashboardHeaderButton>
-          <StyledDashboardHeaderButton
-            onClick={async () => {
-              notify({
-                type: "info",
-                title: "Coming Soon.",
-                message: "Shop is currently being created.",
-              });
-            }}
-          >
-            <img src="shopping-bag.png" alt="" />
-            <p>Shop</p>
-          </StyledDashboardHeaderButton>
-          <StyledDashboardHeaderButton
-            onClick={async () => {
               router.replace("/settings");
             }}
           >
@@ -1264,37 +1236,6 @@ export default function DashboardPage() {
         {/* Dropdown menu for mobile */}
         {menuOpen && (
           <MobileMenu id="mobile-menu" role="menu" ref={menuRef}>
-            <MobileMenuItem
-              role="menuitem"
-              onClick={async () => {
-                router.replace("/contact");
-              }}
-            >
-              <img src="subscription.png" alt="" />
-              Contact
-            </MobileMenuItem>
-            <MobileMenuItem
-              role="menuitem"
-              onClick={async () => {
-                router.replace("/subscriptions");
-              }}
-            >
-              <img src="subscription.png" alt="" />
-              Subscriptions
-            </MobileMenuItem>
-            <MobileMenuItem
-              role="menuitem"
-              onClick={async () => {
-                notify({
-                  type: "info",
-                  title: "Coming Soon.",
-                  message: "Shop is currently being created.",
-                });
-              }}
-            >
-              <img src="shopping-bag.png" alt="" />
-              Shop
-            </MobileMenuItem>
             <MobileMenuItem
               role="menuitem"
               onClick={async () => {
