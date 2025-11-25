@@ -56,7 +56,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     const { data: freeTier, error: tierErr } = await supabase
       .from("subscription_tiers")
       .select("id")
-      .eq("name", "Free")
+      .eq("name", "Tester")
       .single();
 
     if (tierErr) {
