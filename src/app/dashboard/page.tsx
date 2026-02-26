@@ -839,6 +839,7 @@ export default function DashboardPage() {
   // suggestion box
   const [showSuggestionBox, setShowSuggestionBox] = useState(false);
   const [suggestionMessage, setSuggestionMessage] = useState("");
+  const [lastSent, setLastSent] = useState<number>(0);
 
   // Add Contact modal state
   const [showAdd, setShowAdd] = useState(false);
@@ -1008,12 +1009,22 @@ export default function DashboardPage() {
   }
   async function sendSuggestion(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!userId || !suggestionMessage) return;
+
+    const now = Date.now();
+    if (now - lastSent < 30_000) {
+      // 30 seconds
+      alert("Please wait a bit before sending another suggestion.");
+      return;
+    }
+
+    if (!userId || !suggestionMessage.trim()) return;
 
     await addSuggestion(supa, {
       user_id: userId,
-      message: suggestionMessage,
+      message: suggestionMessage.trim(),
     });
+
+    setLastSent(now); // update last sent time
     setShowSuggestionBox(false);
     setSuggestionMessage("");
   }
