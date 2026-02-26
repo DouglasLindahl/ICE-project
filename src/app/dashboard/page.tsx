@@ -1492,8 +1492,7 @@ export default function DashboardPage() {
 
             <StyledDashboardQRCodeSectionQRCodeDisclaimer>
               Print this QR on keychains, wristbands, or wallet cards for quick
-              access. You can also visit our shop to purchase already made
-              items, ready for immediate use.
+              access.
             </StyledDashboardQRCodeSectionQRCodeDisclaimer>
           </StyledDashboardQRCodeSection>
         </RightColumn>
