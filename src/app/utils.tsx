@@ -34,7 +34,7 @@ export type ProfileRow = {
 };
 export async function fetchMaxContacts(
   supa: SupabaseClient,
-  userId: string
+  userId: string,
 ): Promise<number | null> {
   // 1) get the user's chosen tier id from profiles
   const { data: prof, error: pErr } = await supa
@@ -76,7 +76,7 @@ export async function signOut(supa: SupabaseClient) {
 // ----- Profiles -----
 export async function fetchProfile(
   supa: SupabaseClient,
-  userId: string
+  userId: string,
 ): Promise<ProfileRow | null> {
   const { data, error } = await supa
     .from("profiles")
@@ -95,7 +95,7 @@ export async function upsertProfile(supa: SupabaseClient, row: ProfileRow) {
 export async function updateAdditionalInfo(
   supa: SupabaseClient,
   userId: string,
-  text: string
+  text: string,
 ) {
   const { error } = await supa.from("profiles").upsert({
     user_id: userId,
@@ -132,7 +132,7 @@ export async function insertContact(
     phone_e164: string;
     position: number | null;
     priority?: boolean; // optional, default handled by DB
-  }
+  },
 ) {
   const { error } = await supa.from("contacts").insert([params]);
   if (error) throw error;
@@ -149,7 +149,7 @@ export async function updateContact(
       Contact,
       "name" | "relationship" | "phone_e164" | "position" | "priority"
     >
-  >
+  >,
 ) {
   const { error } = await supa.from("contacts").update(patch).eq("id", id);
   if (error) throw error;
@@ -188,7 +188,7 @@ export const validatePwMatch = (s: string, pw: string): string | null => {
 export async function getOrCreatePublicToken(
   supa: SupabaseClient,
   userId: string,
-  generateToken: () => string
+  generateToken: () => string,
 ): Promise<string> {
   const { data: existing, error } = await supa
     .from("public_pages")
@@ -219,4 +219,16 @@ export function buildPublicUrl(token: string, origin?: string) {
 // Convenience to refresh contacts after a write
 export async function refreshContacts(supa: SupabaseClient) {
   return fetchContacts(supa);
+}
+
+//add suggestion
+export async function addSuggestion(
+  supa: SupabaseClient,
+  params: {
+    user_id: string;
+    message: string | null;
+  },
+) {
+  const { error } = await supa.from("suggestions").insert([params]);
+  if (error) throw error;
 }

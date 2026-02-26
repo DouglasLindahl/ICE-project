@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, use } from "react";
 
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browserClient";
@@ -20,6 +20,7 @@ import {
   updateAdditionalInfo as upsertAdditionalInfo,
   Contact,
   fetchMaxContacts,
+  addSuggestion,
 } from "../utils";
 import { LoadingScreen } from "@/components/LoadingScreen/page";
 import { NexaButton } from "@/components/NexaButton/page";
@@ -108,7 +109,7 @@ function detectCountryFromE164(phone: string): Country | null {
 
 function toE164WithCountry(
   raw: string,
-  country: Country
+  country: Country,
 ): { ok: true; e164: string } | { ok: false; reason: string } {
   let v = cleanPlusDigits(raw).trim();
 
@@ -735,22 +736,6 @@ const ModalActionsRow = styled.div`
   }
 `;
 
-const SecondaryBtn = styled.button`
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid ${theme.colors.border};
-  background: ${theme.colors.background};
-  font-size: 14px;
-`;
-
-const DangerBtn = styled.button`
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: none;
-  background: #ef4444;
-  color: white;
-  font-size: 14px;
-`;
 const ToggleRow = styled.div`
   display: flex;
   align-items: center;
@@ -790,6 +775,51 @@ const Toggle = styled.input.attrs({ type: "checkbox" })`
   }
 `;
 
+const StyledSuggestionBox = styled.button`
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  background: white;
+  padding: 14px 18px;
+
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.12),
+    0 2px 6px rgba(0, 0, 0, 0.06);
+
+  cursor: pointer;
+
+  transition: all 0.2s ease;
+
+  max-width: 320px;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 14px 30px rgba(0, 0, 0, 0.15),
+      0 4px 10px rgba(0, 0, 0, 0.08);
+  }
+`;
+
+const SuggestionIcon = styled.img`
+  width: 42px;
+  height: 42px;
+`;
+
+const SuggestionText = styled.p`
+  margin: 0;
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.4;
+`;
+
 /* ============================
    Component
    ============================ */
@@ -805,6 +835,10 @@ export default function DashboardPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [email, setEmail] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+
+  // suggestion box
+  const [showSuggestionBox, setShowSuggestionBox] = useState(false);
+  const [suggestionMessage, setSuggestionMessage] = useState("");
 
   // Add Contact modal state
   const [showAdd, setShowAdd] = useState(false);
@@ -969,6 +1003,21 @@ export default function DashboardPage() {
     };
   }, [router, supa]);
 
+  function openSuggestionBox() {
+    setShowSuggestionBox(true);
+  }
+  async function sendSuggestion(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!userId || !suggestionMessage) return;
+
+    await addSuggestion(supa, {
+      user_id: userId,
+      message: suggestionMessage,
+    });
+    setShowSuggestionBox(false);
+    setSuggestionMessage("");
+  }
+
   async function addContact(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (maxContacts !== null && contacts.length >= maxContacts) {
@@ -1117,8 +1166,8 @@ export default function DashboardPage() {
                 phone_e164,
                 priority: editPriority, // NEW
               }
-            : c
-        )
+            : c,
+        ),
       );
 
       setShowEdit(false);
@@ -1152,17 +1201,6 @@ export default function DashboardPage() {
     }
   }
 
-  // 5s debounce: call this from onChange
-  function updateAdditionalInformation(text: string) {
-    setAdditionalInfo(text);
-    aiLatestRef.current = text;
-
-    if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
-    aiTimerRef.current = setTimeout(() => {
-      aiTimerRef.current = null;
-      void writeAdditionalInfoNow(aiLatestRef.current);
-    }, 5000);
-  }
   useEffect(() => {
     return () => {
       if (aiTimerRef.current) {
@@ -1197,6 +1235,16 @@ export default function DashboardPage() {
 
   return (
     <StyledDashboardPage>
+      <StyledSuggestionBox
+        onClick={() => {
+          openSuggestionBox();
+        }}
+      >
+        <SuggestionIcon src="mailbox.png" alt="Suggestions" />
+        <SuggestionText>
+          Leave a suggestion on what we can add or improve
+        </SuggestionText>
+      </StyledSuggestionBox>
       <StyledDashboardHeader>
         <NexaLogo mode="dark" shimmer></NexaLogo>
 
@@ -1405,7 +1453,7 @@ export default function DashboardPage() {
               <StyledDashboardQRCodeSectionQRCodeDownloadButton
                 onClick={() => {
                   const canvas = document.querySelector(
-                    "canvas"
+                    "canvas",
                   ) as HTMLCanvasElement | null;
                   if (!canvas) return;
                   const link = document.createElement("a");
@@ -1451,6 +1499,50 @@ export default function DashboardPage() {
         </RightColumn>
       </StyledDashboardInfoSection>
 
+      {/* Add Suggestion Box Modal */}
+      {showSuggestionBox && (
+        <Backdrop
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setShowSuggestionBox(false);
+          }}
+        >
+          <Modal
+            onMouseDown={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Suggestion Box"
+          >
+            <ModalHeader>
+              <ModalTitle>Suggestion Box</ModalTitle>
+              <CloseBtn
+                onClick={() => setShowSuggestionBox(false)}
+                aria-label="Close"
+              >
+                <img src="/cross.png" alt="Close" />
+              </CloseBtn>
+            </ModalHeader>
+
+            <Form onSubmit={sendSuggestion}>
+              <Label htmlFor="suggestion">Suggestion</Label>
+              <NexaInput
+                multiline
+                id="Suggestion"
+                ariaLabel="Suggestion"
+                placeholder="Let us know how we can improve"
+                value={suggestionMessage}
+                onChange={setSuggestionMessage}
+                maxLength={600}
+                showValidity={false} // no error text for this one
+                showCounter={true}
+              />
+
+              <Submit type="submit" disabled={submitting}>
+                {submitting ? "Sending..." : "Send"}
+              </Submit>
+            </Form>
+          </Modal>
+        </Backdrop>
+      )}
       {/* Add Contact Modal */}
       {showAdd && (
         <Backdrop
@@ -1510,7 +1602,7 @@ export default function DashboardPage() {
                       value={addCountry.code}
                       onChange={(e) => {
                         const next = COUNTRIES.find(
-                          (c) => c.code === e.target.value
+                          (c) => c.code === e.target.value,
                         )!;
                         setAddCountry(next);
                       }}
@@ -1621,7 +1713,7 @@ export default function DashboardPage() {
                       value={editCountry.code}
                       onChange={(e) => {
                         const next = COUNTRIES.find(
-                          (c) => c.code === e.target.value
+                          (c) => c.code === e.target.value,
                         )!;
                         setEditCountry(next);
                       }}
@@ -1723,6 +1815,7 @@ export default function DashboardPage() {
           </Modal>
         </Backdrop>
       )}
+
       {notice && (
         <NexaPopup
           open={noticeOpen}
@@ -1733,6 +1826,7 @@ export default function DashboardPage() {
           onClose={closeNotice}
         />
       )}
+
       <NexaFooter></NexaFooter>
     </StyledDashboardPage>
   );
